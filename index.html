@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  个人简历网站 · 单文件版（深色技术风 / 链接中枢）
+  ------------------------------------------------------------
+  当前状态
+    · 城市：成都（已填）      · 期望岗位：暂不填（hero 里有注释说明怎么加）
+    · 经历时间线：整段已注释掉，等你有了内容取消注释即可
+    · 邮箱：3096727479@qq.com（已填）
+    · GitHub 用户名：God-realm（已填，4 处：hero、LINKS、两个「源码 ↗」）
+    · 待补：一句话定位、resume.pdf、经历时间线内容
+  ------------------------------------------------------------
+  占位内容定位方式：搜索以下关键词即可找到并替换
+    - resume.pdf
+    - 一句话定位
+  ------------------------------------------------------------
+  清单：
+    1. hero 区：GitHub 用户名、一句话定位
+    2. LINKS 数组  —— 目前只有 GitHub 与 PDF 简历两项
+    3. SKILLS 数组 —— 技能分组（现按两个项目里确有体现的技术写）
+    4. 项目：CodeLine / SimpleCalculate 文字，以及两个「源码 ↗」的 GitHub 地址
+    5. 邮箱、GitHub 真实地址；PDF 简历放到 resume.pdf
+    6. <title> 与 <meta name="description">
+  ------------------------------------------------------------
+  两个可点的按钮
+    · SimpleCalculate 的「运行」按钮打开 ./SimpleCalculate/口算练习.html（相对路径，随目录一起搬走）
+    · CodeLine 是 C++ 源码，网页里跑不了，所以只给「源码 ↗」，指向 GitHub
+  ------------------------------------------------------------
+  本地预览（重要）：直接双击 index.html 时浏览器会拦下 projects 里的「运行」按钮。
+  在项目根目录执行 python -m http.server 8848 后访问 http://localhost:8848/ 即可。
+  ============================================================
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>夏映 · 个人主页</title>
+<meta name="description" content="夏映的个人主页：项目案例、技术栈与联系方式。">
+<!-- 渐变效果只在有 JS 时才生效：没 JS 或脚本出错时，内容一律直接可见，绝不空白。 -->
+<script>document.documentElement.className = 'js';</script>
+<style>
+:root{
+  --bg:#0b0e14;
+  --surface:#11151d;
+  --surface-2:#161c26;
+  --border:#232a36;
+  --text:#e6edf3;
+  --muted:#8b949e;
+  --dim:#5d6673;
+  --accent:#58a6ff;
+  --green:#3fb950;
+  --mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Consolas,"Courier New",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+  --max:940px;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+  background-size:56px 56px;
+}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+a{color:inherit;text-decoration:none}
+ a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+h1,h2,h3{font-weight:600;line-height:1.35;margin:0}
+p{margin:0}
+
+/* ---------- 顶部导航 ---------- */
+.nav{
+  position:sticky;top:0;z-index:50;
+  background:rgba(11,14,20,.82);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);
+}
+.nav-in{display:flex;align-items:center;gap:20px;height:58px}
+.brand{font-family:var(--mono);font-size:14px;color:var(--text);letter-spacing:.02em}
+.brand::before{content:"> ";color:var(--green)}
+.nav-links{margin-left:auto;display:flex;gap:20px;overflow-x:auto}
+.nav-links a{font-size:13px;color:var(--muted);white-space:nowrap;transition:color .18s}
+.nav-links a:hover{color:var(--accent)}
+
+/* ---------- 首屏 ---------- */
+.hero{padding:88px 0 72px;border-bottom:1px solid var(--border)}
+.badge{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:12px;color:var(--green);
+  background:rgba(63,185,80,.09);border:1px solid rgba(63,185,80,.28);
+  padding:5px 11px;border-radius:999px;margin-bottom:26px;
+}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.hero h1{
+  font-family:var(--mono);font-size:clamp(30px,6vw,50px);
+  letter-spacing:-.01em;margin-bottom:18px;
+}
+.handle{color:var(--dim);font-size:.5em;font-weight:400;margin-left:.4em}
+.tagline{font-size:clamp(16px,2.4vw,19px);color:var(--text);max-width:620px;margin-bottom:10px}
+.sub{font-family:var(--mono);font-size:13px;color:var(--muted);margin-bottom:34px}
+.cta{display:flex;flex-wrap:wrap;gap:10px}
+.btn{
+  font-family:var(--mono);font-size:13px;cursor:pointer;
+  padding:10px 18px;border-radius:8px;
+  border:1px solid var(--border);background:var(--surface);color:var(--text);
+  transition:border-color .18s,background .18s,color .18s;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#0b0e14;font-weight:600}
+.btn.primary:hover{background:#79b8ff;border-color:#79b8ff;color:#0b0e14}
+
+/* ---------- 通用区块 ---------- */
+section{padding:64px 0;border-bottom:1px solid var(--border)}
+.sec-title{
+  font-family:var(--mono);font-size:13px;color:var(--accent);
+  letter-spacing:.06em;margin-bottom:10px;
+}
+.sec-title::before{content:"// ";color:var(--dim)}
+.sec-desc{font-size:14px;color:#aeb8c4;margin-bottom:34px;max-width:640px}
+
+/* ---------- 链接中枢 ---------- */
+.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:12px}
+.link{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;border-radius:var(--radius);
+  background:var(--surface);border:1px solid var(--border);
+  transition:border-color .18s,transform .18s,background .18s;
+}
+.link:hover{border-color:var(--lc,var(--accent));transform:translateY(-2px);background:var(--surface-2)}
+.slug{
+  flex:0 0 auto;font-family:var(--mono);font-size:12px;letter-spacing:.03em;
+  padding:5px 8px;border-radius:6px;
+  color:var(--lc,var(--accent));
+  background:rgba(88,166,255,.12);
+  background:color-mix(in srgb,var(--lc,var(--accent)) 13%,transparent);
+  border:1px solid rgba(88,166,255,.30);
+  border:1px solid color-mix(in srgb,var(--lc,var(--accent)) 32%,transparent);
+}
+.icon{flex:0 0 auto;width:20px;height:20px;color:var(--lc,var(--accent));display:block}
+.link-txt{min-width:0}
+.link-name{font-size:14px;font-weight:500;line-height:1.4}
+.link-desc{font-size:12px;color:#aeb8c4;line-height:1.5}
+.link-arrow{margin-left:auto;color:var(--dim);font-family:var(--mono);font-size:13px;transition:color .18s,transform .18s}
+.link:hover .link-arrow{color:var(--lc,var(--accent));transform:translate(2px,-2px)}
+
+/* ---------- 技能 ---------- */
+.skill-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:26px}
+.skill-group h3{font-size:14px;margin-bottom:12px;color:var(--text)}
+.skill-group h3::before{content:"▸ ";color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{
+  font-family:var(--mono);font-size:12px;color:#c0c8d2;
+  padding:4px 10px;border-radius:6px;
+  background:var(--surface);border:1px solid var(--border);
+}
+
+/* ---------- 项目 ---------- */
+.proj{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:24px;margin-bottom:16px;
+  transition:border-color .2s;
+}
+.proj:hover{border-color:#2f3a4a}
+.proj-head{display:flex;align-items:baseline;flex-wrap:wrap;gap:12px;margin-bottom:8px}
+.proj-head h3{font-size:17px}
+.proj-meta{font-family:var(--mono);font-size:12px;color:var(--dim)}
+.proj-line{font-size:14px;color:#aeb8c4;margin-bottom:16px}
+.proj-highlights{margin:0 0 18px;padding-left:20px;color:var(--text);font-size:14px}
+.proj-highlights li{padding:2px 0}
+.proj-more{margin:0 0 18px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.proj-more summary{cursor:pointer;padding:11px 0;color:var(--accent);font-size:13px;user-select:none}
+.proj-more[open] summary{margin-bottom:12px}
+.proj-more .proj-detail{margin-bottom:18px}
+.skill-source{font-size:12px;color:#aeb8c4;margin:-4px 0 12px}
+.proj-detail{display:grid;gap:12px;margin:0 0 18px}
+.proj-detail > div{display:grid;grid-template-columns:80px 1fr;gap:14px;align-items:start}
+.proj-detail dt{font-family:var(--mono);font-size:12px;color:var(--accent);padding-top:3px}
+.proj-detail dd{margin:0;font-size:14px;line-height:1.7}
+.tags{display:flex;flex-wrap:wrap;gap:7px;padding-top:16px;border-top:1px solid var(--border)}
+.tag{font-family:var(--mono);font-size:11px;color:var(--dim);padding:3px 8px;border-radius:4px;background:var(--surface-2)}
+.tags .spacer{flex:1}
+.proj-run{
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--mono);font-size:12px;
+  padding:6px 13px;border-radius:7px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text);
+  cursor:pointer;white-space:nowrap;
+  transition:border-color .18s,color .18s,background .18s;
+}
+.proj-run:hover{border-color:var(--accent);color:var(--accent)}
+.proj-run::before{content:"";width:0;height:0;border-style:solid;border-width:4px 0 4px 6px;border-color:transparent transparent transparent currentColor}
+.proj-run.ghost::before{display:none}
+.proj-run i{font-style:normal;opacity:.75}
+
+/* ---------- 时间线 ---------- */
+.tl{list-style:none;margin:0;padding:0 0 0 22px;position:relative}
+.tl::before{content:"";position:absolute;left:3px;top:8px;bottom:8px;width:1px;background:var(--border)}
+.tl li{position:relative;padding-bottom:32px}
+.tl li:last-child{padding-bottom:0}
+.tl li::before{
+  content:"";position:absolute;left:-22px;top:8px;
+  width:7px;height:7px;border-radius:50%;background:var(--bg);
+  border:1px solid var(--accent);
+}
+.tl-date{font-family:var(--mono);font-size:12px;color:var(--dim);display:block;margin-bottom:4px}
+.tl h3{font-size:15px;margin-bottom:6px}
+.tl p{font-size:14px;color:var(--muted)}
+
+/* ---------- 页脚 ---------- */
+footer{padding:64px 0 72px}
+.foot-note{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.9}
+.foot-note a{color:var(--muted);border-bottom:1px solid var(--border)}
+.foot-note a:hover{color:var(--accent);border-color:var(--accent)}
+
+/* ---------- 滚动渐入（加了 .js 前缀，没 JS 时内容照常显示） ---------- */
+.js .reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+.reveal.on{opacity:1;transform:none}
+
+/* ---------- 移动端 ---------- */
+@media (max-width:640px){
+  .hero{padding:56px 0 48px}
+  section{padding:48px 0}
+  .proj{padding:18px}
+  .proj-detail > div{grid-template-columns:1fr;gap:2px}
+  .nav-links{gap:16px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition:none !important}
+  .js .reveal{opacity:1;transform:none}
+}
+
+/* ---------- 打印（Ctrl+P 存 PDF） ---------- */
+@media print{
+  body{background:#fff;color:#111;background-image:none}
+  .nav,.cta,.link-arrow{display:none}
+  section,.hero,footer{border-color:#ddd;padding:22px 0}
+  .badge,.link,.chip,.proj,.tag,.tl li::before{background:#fff;border-color:#ddd}
+  .link,.proj{break-inside:avoid}
+  .sec-title,.proj-detail dt{color:#0a58ca}
+  .tagline,.sub,.sec-desc,.link-desc,.skill-group .chip,.proj-line,.tl p,.tl-date{color:#444}
+  .reveal{opacity:1 !important;transform:none !important}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav" aria-label="主导航">
+  <div class="wrap nav-in">
+    <a class="brand" href="#">夏映</a>
+    <div class="nav-links">
+      <a href="#links">链接</a>
+      <a href="#skills">技能</a>
+      <a href="#projects">项目</a>
+      <!-- 经历时间线填好后，取消下面这行的注释 -->
+      <!-- <a href="#timeline">经历</a> -->
+      <a href="#contact">联系</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="badge"><span class="dot"></span>欢迎联系</div>
+    <h1>夏映<span class="handle">@God-realm</span></h1>
+    <p class="tagline">一句话定位：你做什么方向、最擅长解决哪一类问题、做出过什么可量化的结果。</p>
+    <!-- 期望岗位与可到岗时间等填好了再加，形如：现居成都 · 期望岗位：C++ 开发 · 可到岗时间：面议 -->
+    <p class="sub">现居成都</p>
+    <div class="cta">
+      <a class="btn primary" href="mailto:3096727479@qq.com">邮件联系 ↗</a>
+      <button class="btn" id="copyMail" data-mail="3096727479@qq.com">复制邮箱</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<section id="links">
+    <div class="wrap">
+      <h2 class="sec-title">links</h2>
+      <div class="links" id="linkGrid">
+        <a class="link" style="--lc:#e6edf3" href="https://github.com/God-realm" target="_blank" rel="noopener">
+          <svg class="icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 .8A7.2 7.2 0 0 0 5.7 14.8c.36.07.49-.16.49-.35v-1.2c-2 .43-2.42-.97-2.42-.97-.33-.83-.8-1.05-.8-1.05-.66-.45.05-.44.05-.44.73.05 1.11.75 1.11.75.65 1.11 1.7.79 2.12.6.06-.47.25-.79.46-.97-1.6-.18-3.28-.8-3.28-3.56 0-.79.28-1.43.75-1.94-.08-.18-.32-.92.07-1.91 0 0 .6-.19 1.97.73a6.9 6.9 0 0 1 3.58 0c1.36-.92 1.96-.73 1.96-.73.39.99.15 1.73.07 1.91.47.51.75 1.15.75 1.94 0 2.77-1.69 3.38-3.3 3.56.26.23.49.67.49 1.35v2c0 .2.13.43.5.35A7.2 7.2 0 0 0 8 .8Z"/></svg>
+          <span class="link-txt"><span class="link-name">GitHub</span><br><span class="link-desc">源码、开源项目与提交记录</span></span><span class="link-arrow" aria-hidden="true">↗</span>
+        </a>
+        <a class="link" style="--lc:#8b949e" href="./resume.pdf">
+          <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M4 1h5.2L13 4.8V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z"/><path d="M9 1v4h4"/></svg>
+          <span class="link-txt"><span class="link-name">PDF 简历</span><br><span class="link-desc">一页版，方便打印与转发</span></span><span class="link-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="skills">
+    <div class="wrap">
+      <h2 class="sec-title">skills</h2>
+      <p class="sec-desc">按项目实践和常用工具分组；项目名称标明了对应的实践来源。</p>
+      <div class="skill-grid" id="skillGrid">
+        <div class="skill-group"><h3>项目实践 · CodeLine</h3><p class="skill-source">代码行统计工具</p><div class="chips"><span class="chip">C++11</span><span class="chip">Win32 API</span><span class="chip">POSIX 目录 API</span><span class="chip">字符状态机</span><span class="chip">文件 IO 与长路径</span><span class="chip">性能测量</span></div></div>
+        <div class="skill-group"><h3>项目实践 · SimpleCalculate</h3><p class="skill-source">口算出题器</p><div class="chips"><span class="chip">Python 3.13</span><span class="chip">原生 JavaScript</span><span class="chip">CLI</span><span class="chip">unittest</span><span class="chip">交叉验证</span><span class="chip">无头浏览器实测</span></div></div>
+        <div class="skill-group"><h3>工具与基础</h3><p class="skill-source">按实际掌握情况保留或调整</p><div class="chips"><span class="chip">C</span><span class="chip">数据结构与算法</span><span class="chip">操作系统</span><span class="chip">EasyX</span><span class="chip">Git</span><span class="chip">MinGW (GCC)</span><span class="chip">Visual Studio</span><span class="chip">命令行构建</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="projects">
+    <div class="wrap">
+      <h2 class="sec-title">projects</h2>
+      <p class="sec-desc">两个都写成了「背景 → 决策 → 结果」。SimpleCalculate 是自包含的单文件页面，可以在这里直接跑起来；CodeLine 是 C++ 源码，网页里执行不了，只能看仓库。</p>
+
+      <article class="proj reveal">
+        <div class="proj-head">
+          <h3>CodeLine · 代码行统计工具</h3>
+          <span class="proj-meta">2026.09 · C++11 / Win32 API</span>
+        </div>
+        <p class="proj-line">一个单文件的 loc 命令行工具，统计 C / C++ / Java / Python 源文件的文件数、空行、注释行与代码行，按语言汇总成表。</p>
+        <ul class="proj-highlights"><li>在 MinGW 头文件目录统计 411 个文件、134,350 行代码，耗时 2.7 秒。</li><li>定位并修复整盘扫描因 Windows 长路径拼接失败而静默跳过目录的问题。</li><li>用独立 Python 实现交叉验证，13 万行统计差异为 9 行（0.007%）。</li></ul>
+        <details class="proj-more"><summary>查看实现决策与验证细节</summary><dl class="proj-detail">
+          <div><dt>背景</dt><dd>课程要求实现一个代码行统计器。本机 MinGW 是 GCC 6.3，没有 <code>std::filesystem</code>，目录遍历只能自己用平台 API 写；作业又要求「能扫整盘」。这两条一起把难度压在了路径与 IO 上，而不是统计规则上。</dd></div>
+          <div><dt>我的决策</dt><dd>不用 <code>std::filesystem</code>，改成 Win32 <code>FindFirstFileA</code> 与 POSIX <code>opendir</code> 双分支，显式栈迭代递归，避免深目录爆栈。逐行扫描走字符状态机，用 <code>inBlock</code> / <code>inLine</code> 两个状态记录位置，一旦进入字符串字面量就整体跳过——这样 <code>"http://x"</code> 里的 <code>//</code> 不会被当成注释。读文件用 <code>std::getline</code> 流式处理，不整个载入内存。</dd></div>
+          <div><dt>结果</dt><dd>在 <code>D:/MinGW/include</code> 上实测 411 个文件、134350 行代码，耗时 2.7 秒；整盘扫描 <code>C:\</code> 得到 6957 个文件、600893 行代码，冷启动 56 秒、二次 13–16 秒。<br>真正值钱的是查出的那个隐蔽 bug：整盘扫描返回全 0、只用了 0.168 秒，但扫任何子目录都正常。根因是 <code>\\?\</code> 长路径前缀会关闭系统路径规范化，而驱动器根目录经 <code>GetFullPathNameA</code> 后保留结尾反斜杠，于是拼出 <code>\\?\C:\\Windows</code> 这种双反斜杠，直接报 <code>ERROR_INVALID_NAME(123)</code>，整棵子树被静默跳过。抽出统一的 <code>joinPath()</code> 修掉后恢复正常。<br>统计口径另用 Python 的 <code>tokenize</code> 写了独立实现交叉验证：相同批次下 13 万行只差 9 行（0.007%），判定实现正确。</dd></div>
+        </dl></details>
+        <div class="tags">
+          <span class="tag">C++11</span><span class="tag">Win32 API</span><span class="tag">字符状态机</span><span class="tag">迭代式目录遍历</span><span class="tag">交叉验证</span>
+          <span class="spacer"></span>
+          <a class="proj-run ghost" href="https://github.com/God-realm/CodeLine" target="_blank" rel="noopener">源码 <i>↗</i></a>
+        </div>
+      </article>
+
+      <article class="proj reveal">
+        <div class="proj-head">
+          <h3>SimpleCalculate · 小学口算出题器</h3>
+          <span class="proj-meta">2026.09 · Python 3.13 + 原生 JS</span>
+        </div>
+        <p class="proj-line">面向小学生的四则运算题目生成器，命令行与网页两种用法。题目不重复、可复现，并且保证所有数值（含每一步中间结果）都落在 <code>[0, 100]</code> 内、除法除得尽、乘法不超出九九表。</p>
+        <ul class="proj-highlights"><li>用独立校验器复核 27,950 道题，硬约束违反 0，排版不一致 0。</li><li>修复去重导致的题型比例漂移，并解决 <code>--mul-min 0</code> 路径崩溃。</li><li>网页端布局覆盖 68 组窗口与设置组合，未出现折行。</li></ul>
+        <details class="proj-more"><summary>查看实现决策与验证细节</summary><dl class="proj-detail">
+          <div><dt>背景</dt><dd>核心约束是「所有数值永不越界」——这是一条全称命题，靠抽样测不出来。最容易走歪的路是用 JS 把生成逻辑重写一遍给网页用，那等于把唯一真相源变成两份实现，成批出题时的漂移极难察觉。</dd></div>
+          <div><dt>我的决策</dt><dd>生成改为「按运算符直接构造合法区间」，再配一个<strong>不依赖生成器</strong>的独立求值校验器做回读复核。浏览器版把引擎内联进页面（<code>file://</code> 下 <code>fetch</code> 必失败、ES module 被 CORS 拦，只能走经典脚本），同时用 Node 驱动引擎成批出题、回炉交给 Python 校验器逐题复核，防止两份实现漂移。括号只在渲染层现场求值决定要不要加，树上不存这个字段，避免两套真相。</dd></div>
+          <div><dt>结果</dt><dd>77 项测试、交叉验证 27950 道题，硬约束违反 0、排版不一致 0。<br>页面上线后做分布检查，发现单 / 双运算符配比随题量漂移：100 题时 52:48，5 万题时变成 18.9:81.1。根因是「逐题抽类型 + 全局去重 + 撞重复就重抽」——单运算符题只有约 1.06 万种题面，抽干后被拒绝的代价全由空间大得多的双运算符题补上。改成最大余数法先精确分配名额、再各类独立去重，6000 题实测精确到 3000:3000。<br>顺带暴露一个真崩溃：<code>--mul-min 0</code> 这条路径在候选集构造时对操作数 0 做整除，直接 <code>ZeroDivisionError</code>，之前完全没有测试覆盖。<br>网页版为自包含单文件，20 题出题耗时 4 毫秒（Python 版两万题约 6 秒）；用无头 Edge 跑了 68 组「窗口宽度 × 每行题数 × 答案开关」的布局矩阵，折行 0 组。</dd></div>
+        </dl></details>
+        <div class="tags">
+          <span class="tag">Python 3.13</span><span class="tag">CLI</span><span class="tag">原生 JS 单文件</span><span class="tag">交叉验证</span><span class="tag">无头 Edge 实测</span>
+          <span class="spacer"></span>
+          <button class="proj-run" type="button" data-run="./SimpleCalculate/口算练习.html">运行</button>
+          <a class="proj-run ghost" href="https://github.com/God-realm/SimpleCalculate" target="_blank" rel="noopener">源码 <i>↗</i></a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- 经历时间线：内容还没定，整段先停用。填好后删掉下面这一对注释标记即可恢复。
+  <section id="timeline">
+    <div class="wrap">
+      <h2 class="sec-title">experience</h2>
+      <p class="sec-desc">只写「我做了什么、影响了什么」，不写岗位说明书。</p>
+      <ol class="tl">
+        <li class="reveal">
+          <span class="tl-date">2024.03 — 至今</span>
+          <h3>公司名称 · 职位</h3>
+          <p>负责什么模块，做出过什么可衡量的改动。</p>
+        </li>
+        <li class="reveal">
+          <span class="tl-date">2022.07 — 2024.02</span>
+          <h3>公司名称 · 职位</h3>
+          <p>负责什么模块，做出过什么可衡量的改动。</p>
+        </li>
+        <li class="reveal">
+          <span class="tl-date">2018.09 — 2022.06</span>
+          <h3>学校 · 专业 · 学历</h3>
+          <p>相关课程、竞赛、奖项，一句话带过。</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+  -->
+
+</main>
+
+<footer id="contact">
+  <div class="wrap">
+    <h2 class="sec-title">contact</h2>
+    <p class="sec-desc">看到这里说明你对我有点兴趣了。最快的联系方式是邮件，我通常在 24 小时内回复。</p>
+    <div class="cta">
+      <a class="btn primary" href="mailto:3096727479@qq.com">3096727479@qq.com ↗</a>
+      <button class="btn" id="copyMail2" data-mail="3096727479@qq.com">复制邮箱</button>
+    </div>
+    <p class="foot-note">
+      © <span id="year"></span> 夏映 · 单文件手写，无框架无追踪<br>
+      小提示：按 F12 打开控制台看看。
+    </p>
+  </div>
+</footer>
+
+<script>
+document.getElementById('year').textContent = new Date().getFullYear();
+
+document.querySelectorAll('#copyMail, #copyMail2').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    const mail = btn.dataset.mail;
+    const done = function () { btn.textContent = '已复制'; setTimeout(function () { btn.textContent = '复制邮箱'; }, 1600); };
+    if (navigator.clipboard) { navigator.clipboard.writeText(mail).then(done); }
+    else { const t = document.createElement('textarea'); t.value = mail; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); }
+  });
+});
+
+document.querySelectorAll('.proj-run[data-run]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    const w = window.open(btn.dataset.run, '_blank');
+    if (!w) { alert('浏览器拦下了新窗口。请允许本页面弹出窗口后重试。'); return; }
+    const tip = btn.textContent;
+    btn.textContent = '已在新窗口打开';
+    setTimeout(function () { btn.textContent = tip; }, 1800);
+  });
+});
+
+const revealed = document.querySelectorAll('.reveal');
+function showAllRevealed() {
+  revealed.forEach(function (el) { el.classList.add('on'); });
+}
+if (typeof IntersectionObserver === 'function') {
+  const io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('on'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  revealed.forEach(function (el) { io.observe(el); });
+  // 兜底：渐入只是锦上添花，内容才是重点。若 1.5 秒内 IO 仍未回调（某些环境不派发），
+  // 一律全部显示，绝不让项目区停在 opacity:0 变成空白。
+  setTimeout(showAllRevealed, 1500);
+} else {
+  showAllRevealed();
+}
+
+console.log('%c夏映', 'font:600 20px monospace;color:#58a6ff');
+console.log('%cC++ 方向 · 这里是我留给你的一行彩蛋。', 'font:12px monospace;color:#8b949e');
+console.log('%c联系我：3096727479@qq.com', 'font:12px monospace;color:#3fb950');
+</script>
+</body>
+</html>
