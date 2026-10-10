@@ -18,13 +18,13 @@
     1. hero 区：GitHub 用户名、一句话定位
     2. LINKS 数组  —— 目前只有 GitHub 与 PDF 简历两项
     3. SKILLS 数组 —— 技能分组（现按两个项目里确有体现的技术写）
-    4. 项目：CodeLine / SimpleCalculate 文字，以及两个「源码 ↗」的 GitHub 地址
+    4. 项目：CodeLine / SimpleCalculate 文案和链接
     5. 邮箱、GitHub 真实地址；PDF 简历放到 resume.pdf
     6. <title> 与 <meta name="description">
   ------------------------------------------------------------
-  两个可点的按钮
-    · SimpleCalculate 的「运行」按钮打开 ./SimpleCalculate/口算练习.html（相对路径，随目录一起搬走）
-    · CodeLine 是 C++ 源码，网页里跑不了，所以只给「源码 ↗」，指向 GitHub
+  项目演示入口
+    · SimpleCal 的「运行」按钮打开 ./SimpleCal/口算练习.html
+    · CodeLine 的「运行」按钮打开浏览器版文件夹统计工具
   ------------------------------------------------------------
   本地预览（重要）：直接双击 index.html 时浏览器会拦下 projects 里的「运行」按钮。
   在项目根目录执行 python -m http.server 8848 后访问 http://localhost:8848/ 即可。
@@ -308,14 +308,14 @@ footer{padding:64px 0 72px}
   <section id="projects">
     <div class="wrap">
       <h2 class="sec-title">projects</h2>
-      <p class="sec-desc">两个都写成了「背景 → 决策 → 结果」。SimpleCalculate 是自包含的单文件页面，可以在这里直接跑起来；CodeLine 是 C++ 源码，网页里执行不了，只能看仓库。</p>
+      <p class="sec-desc">打开项目体验，或查看实现源码。</p>
 
       <article class="proj reveal">
         <div class="proj-head">
           <h3>CodeLine · 代码行统计工具</h3>
-          <span class="proj-meta">2026.09 · C++11 / Win32 API</span>
+          <span class="proj-meta">2026.09 · C++11 / 原生 JavaScript</span>
         </div>
-        <p class="proj-line">一个单文件的 loc 命令行工具，统计 C / C++ / Java / Python 源文件的文件数、空行、注释行与代码行，按语言汇总成表。</p>
+        <p class="proj-line">提供 C++ 命令行版和浏览器版，统计 C / C++ / Java / Python 源文件。浏览器版可选择本机文件夹，文件只在本地处理。</p>
         <ul class="proj-highlights"><li>在 MinGW 头文件目录统计 411 个文件、134,350 行代码，耗时 2.7 秒。</li><li>定位并修复整盘扫描因 Windows 长路径拼接失败而静默跳过目录的问题。</li><li>用独立 Python 实现交叉验证，13 万行统计差异为 9 行（0.007%）。</li></ul>
         <details class="proj-more"><summary>查看实现决策与验证细节</summary><dl class="proj-detail">
           <div><dt>背景</dt><dd>课程要求实现一个代码行统计器。本机 MinGW 是 GCC 6.3，没有 <code>std::filesystem</code>，目录遍历只能自己用平台 API 写；作业又要求「能扫整盘」。这两条一起把难度压在了路径与 IO 上，而不是统计规则上。</dd></div>
@@ -323,8 +323,9 @@ footer{padding:64px 0 72px}
           <div><dt>结果</dt><dd>在 <code>D:/MinGW/include</code> 上实测 411 个文件、134350 行代码，耗时 2.7 秒；整盘扫描 <code>C:\</code> 得到 6957 个文件、600893 行代码，冷启动 56 秒、二次 13–16 秒。<br>真正值钱的是查出的那个隐蔽 bug：整盘扫描返回全 0、只用了 0.168 秒，但扫任何子目录都正常。根因是 <code>\\?\</code> 长路径前缀会关闭系统路径规范化，而驱动器根目录经 <code>GetFullPathNameA</code> 后保留结尾反斜杠，于是拼出 <code>\\?\C:\\Windows</code> 这种双反斜杠，直接报 <code>ERROR_INVALID_NAME(123)</code>，整棵子树被静默跳过。抽出统一的 <code>joinPath()</code> 修掉后恢复正常。<br>统计口径另用 Python 的 <code>tokenize</code> 写了独立实现交叉验证：相同批次下 13 万行只差 9 行（0.007%），判定实现正确。</dd></div>
         </dl></details>
         <div class="tags">
-          <span class="tag">C++11</span><span class="tag">Win32 API</span><span class="tag">字符状态机</span><span class="tag">迭代式目录遍历</span><span class="tag">交叉验证</span>
+          <span class="tag">C++11</span><span class="tag">原生 JavaScript</span><span class="tag">文件夹选择</span><span class="tag">字符状态机</span><span class="tag">交叉验证</span>
           <span class="spacer"></span>
+          <button class="proj-run" type="button" data-run="./CodeLine/网页统计.html">运行</button>
           <a class="proj-run ghost" href="https://github.com/God-realm/CodeLine" target="_blank" rel="noopener">源码 <i>↗</i></a>
         </div>
       </article>
@@ -344,7 +345,7 @@ footer{padding:64px 0 72px}
         <div class="tags">
           <span class="tag">Python 3.13</span><span class="tag">CLI</span><span class="tag">原生 JS 单文件</span><span class="tag">交叉验证</span><span class="tag">无头 Edge 实测</span>
           <span class="spacer"></span>
-          <button class="proj-run" type="button" data-run="./SimpleCalculate/口算练习.html">运行</button>
+          <button class="proj-run" type="button" data-run="./SimpleCal/口算练习.html">运行</button>
           <a class="proj-run ghost" href="https://github.com/God-realm/SimpleCalculate" target="_blank" rel="noopener">源码 <i>↗</i></a>
         </div>
       </article>
