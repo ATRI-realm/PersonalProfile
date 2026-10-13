@@ -23,8 +23,8 @@
     6. <title> 与 <meta name="description">
   ------------------------------------------------------------
   项目演示入口
-    · SimpleCal 的「运行」按钮打开 ./SimpleCal/口算练习.html
-    · CodeLine 的「运行」按钮打开浏览器版文件夹统计工具
+    · SimpleCal 的「运行」链接打开仓库根目录的 ./口算练习.html
+    · CodeLine 的「运行」链接打开仓库根目录的 ./网页统计.html
   ------------------------------------------------------------
   本地预览（重要）：直接双击 index.html 时浏览器会拦下 projects 里的「运行」按钮。
   在项目根目录执行 python -m http.server 8848 后访问 http://localhost:8848/ 即可。
@@ -325,8 +325,8 @@ footer{padding:64px 0 72px}
         <div class="tags">
           <span class="tag">C++11</span><span class="tag">原生 JavaScript</span><span class="tag">文件夹选择</span><span class="tag">字符状态机</span><span class="tag">交叉验证</span>
           <span class="spacer"></span>
-          <button class="proj-run" type="button" data-run="./CodeLine/网页统计.html">运行</button>
-          <a class="proj-run ghost" href="https://github.com/God-realm/CodeLine" target="_blank" rel="noopener">源码 <i>↗</i></a>
+          <a class="proj-run" href="./网页统计.html" target="_blank" rel="noopener">运行</a>
+          <a class="proj-run ghost" href="https://github.com/God-realm/PersonalProfile" target="_blank" rel="noopener">源码 <i>↗</i></a>
         </div>
       </article>
 
@@ -345,8 +345,8 @@ footer{padding:64px 0 72px}
         <div class="tags">
           <span class="tag">Python 3.13</span><span class="tag">CLI</span><span class="tag">原生 JS 单文件</span><span class="tag">交叉验证</span><span class="tag">无头 Edge 实测</span>
           <span class="spacer"></span>
-          <button class="proj-run" type="button" data-run="./SimpleCal/口算练习.html">运行</button>
-          <a class="proj-run ghost" href="https://github.com/God-realm/SimpleCalculate" target="_blank" rel="noopener">源码 <i>↗</i></a>
+          <a class="proj-run" href="./口算练习.html" target="_blank" rel="noopener">运行</a>
+          <a class="proj-run ghost" href="https://github.com/God-realm/PersonalProfile" target="_blank" rel="noopener">源码 <i>↗</i></a>
         </div>
       </article>
     </div>
@@ -404,16 +404,6 @@ document.querySelectorAll('#copyMail, #copyMail2').forEach(function (btn) {
     const done = function () { btn.textContent = '已复制'; setTimeout(function () { btn.textContent = '复制邮箱'; }, 1600); };
     if (navigator.clipboard) { navigator.clipboard.writeText(mail).then(done); }
     else { const t = document.createElement('textarea'); t.value = mail; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); done(); }
-  });
-});
-
-document.querySelectorAll('.proj-run[data-run]').forEach(function (btn) {
-  btn.addEventListener('click', function () {
-    const w = window.open(btn.dataset.run, '_blank');
-    if (!w) { alert('浏览器拦下了新窗口。请允许本页面弹出窗口后重试。'); return; }
-    const tip = btn.textContent;
-    btn.textContent = '已在新窗口打开';
-    setTimeout(function () { btn.textContent = tip; }, 1800);
   });
 });
 
