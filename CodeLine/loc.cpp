@@ -3,7 +3,7 @@
  * ----------------------------------------------------------------------------
  *  功能：
  *      递归扫描指定目录，统计 C / C++ / Java / Python 源文件的
- *      文件数(files)、空行(blank)、注释行(comment)、代码行(code)，
+ *      文件数(files)、函数数(functions)、空行(blank)、注释行(comment)、代码行(code)，
  *      并按语言分类汇总输出表格。
  *
  *  输入：
@@ -80,15 +80,17 @@ static const char* const kLangExt[LANG_COUNT][12] =
 struct Stats
 {
     long long files;    /* 文件个数     */
+    long long functions;/* 函数 / 方法数 */
     long long blank;    /* 空行行数     */
     long long comment;  /* 注释行数     */
     long long code;     /* 代码行数     */
 
-    Stats() : files(0), blank(0), comment(0), code(0) {}
+    Stats() : files(0), functions(0), blank(0), comment(0), code(0) {}
 
     void add(const Stats& o)
     {
         files   += o.files;
+        functions += o.functions;
         blank   += o.blank;
         comment += o.comment;
         code    += o.code;
@@ -114,6 +116,189 @@ static void chomp(std::string& s)
         s.erase(s.size() - 1);
 }
 
+static bool isIdentifierStart(char c)
+{
+    return std::isalpha(static_cast<unsigned char>(c)) || c == '_' || c == '$';
+}
+
+static bool isIdentifierPart(char c)
+{
+    return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '$';
+}
+
+/* 将 C 系代码行（已去掉注释和字符串内容）切成轻量 token。 */
+static void appendTokens(const std::string& line, std::vector<std::string>& tokens)
+{
+    std::size_t i = 0;
+    while (i < line.size())
+    {
+        const char c = line[i];
+        if (std::isspace(static_cast<unsigned char>(c)))
+        {
+            ++i;
+            continue;
+        }
+        if (isIdentifierStart(c) || std::isdigit(static_cast<unsigned char>(c)))
+        {
+            const std::size_t start = i++;
+            while (i < line.size() && isIdentifierPart(line[i]))
+                ++i;
+            tokens.push_back(line.substr(start, i - start));
+            continue;
+        }
+        tokens.push_back(line.substr(i, 1));
+        ++i;
+    }
+}
+
+static bool isControlOrQualifier(const std::string& name)
+{
+    static const char* const words[] = {
+        "if", "for", "while", "switch", "catch", "synchronized", "foreach",
+        "sizeof", "alignof", "decltype", "typeid", "static_assert", "requires",
+        "noexcept", "throw", "new", "delete", "return", "else", "do"
+    };
+    for (std::size_t i = 0; i < sizeof(words) / sizeof(words[0]); ++i)
+        if (name == words[i])
+            return true;
+    return false;
+}
+
+static bool isFunctionDeclarator(const std::vector<std::string>& tokens,
+                                 std::size_t openParen)
+{
+    if (openParen == 0)
+        return false;
+
+    const std::string& before = tokens[openParen - 1];
+    if (isIdentifierStart(before[0]))
+    {
+        if (isControlOrQualifier(before))
+            return false;
+        if (openParen >= 2)
+        {
+            const std::string& prefix = tokens[openParen - 2];
+            if (prefix == "@" || prefix == "=" || prefix == ":" || prefix == ","
+                || prefix == "." || prefix == "->" || prefix == "new")
+            {
+                /* public: C++ constructors are still declarations. */
+                if (prefix != ":" || (openParen < 3
+                    || (tokens[openParen - 3] != "public"
+                        && tokens[openParen - 3] != "protected"
+                        && tokens[openParen - 3] != "private")))
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    /* operator overloads have punctuation or ')' immediately before params. */
+    const std::size_t begin = openParen > 12 ? openParen - 12 : 0;
+    for (std::size_t i = openParen; i > begin; )
+    {
+        --i;
+        if (tokens[i] == "operator")
+            return true;
+        if (tokens[i] == ";" || tokens[i] == "{" || tokens[i] == "}")
+            break;
+    }
+    return false;
+}
+
+static long long countCLikeFunctions(const std::vector<std::string>& tokens)
+{
+    const std::size_t n = tokens.size();
+    std::vector<int> parenMate(n, -1), braceMate(n, -1);
+    std::vector<std::size_t> stack;
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        if (tokens[i] == "(")
+            stack.push_back(i);
+        else if (tokens[i] == ")" && !stack.empty())
+        {
+            const std::size_t open = stack.back();
+            stack.pop_back();
+            parenMate[open] = static_cast<int>(i);
+            parenMate[i] = static_cast<int>(open);
+        }
+    }
+    stack.clear();
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        if (tokens[i] == "{")
+            stack.push_back(i);
+        else if (tokens[i] == "}" && !stack.empty())
+        {
+            const std::size_t open = stack.back();
+            stack.pop_back();
+            braceMate[open] = static_cast<int>(i);
+            braceMate[i] = static_cast<int>(open);
+        }
+    }
+
+    long long count = 0;
+    for (std::size_t close = 0; close < n; ++close)
+    {
+        if (tokens[close] != ")" || parenMate[close] < 0)
+            continue;
+        const std::size_t open = static_cast<std::size_t>(parenMate[close]);
+        if (!isFunctionDeclarator(tokens, open))
+            continue;
+
+        bool hasCtorInitializer = false;
+        bool foundBody = false;
+        std::size_t i = close + 1;
+        while (i < n)
+        {
+            const std::string& token = tokens[i];
+            if (token == "{")
+            {
+                /* Skip braced member initializers such as : value{1} { body }. */
+                if (hasCtorInitializer && braceMate[i] >= 0
+                    && static_cast<std::size_t>(braceMate[i] + 1) < n
+                    && tokens[static_cast<std::size_t>(braceMate[i] + 1)] == ",")
+                {
+                    i = static_cast<std::size_t>(braceMate[i]) + 2;
+                    continue;
+                }
+                if (hasCtorInitializer && braceMate[i] >= 0
+                    && static_cast<std::size_t>(braceMate[i] + 1) < n
+                    && tokens[static_cast<std::size_t>(braceMate[i] + 1)] == "{")
+                {
+                    i = static_cast<std::size_t>(braceMate[i]) + 1;
+                    continue;
+                }
+                foundBody = true;
+                break;
+            }
+            if (token == ";" || token == "=" || token == "}")
+                break;                  /* 原型、= default / = 0 或不完整声明 */
+            if (token == ":")
+                hasCtorInitializer = true;
+            if (token == "(")
+            {
+                const bool qualifierCall = i > 0
+                    && (tokens[i - 1] == "noexcept" || tokens[i - 1] == "throw"
+                        || tokens[i - 1] == "requires" || tokens[i - 1] == "decltype");
+                if (!qualifierCall && !hasCtorInitializer)
+                    break;
+                if (parenMate[i] < 0)
+                    break;
+                i = static_cast<std::size_t>(parenMate[i]) + 1;
+                continue;
+            }
+            if (token == ")")
+                break;                  /* 例如 if (call()) 后面的控制块 */
+            if (token == "," && !hasCtorInitializer)
+                break;
+            ++i;
+        }
+        if (foundBody)
+            ++count;
+    }
+    return count;
+}
+
 /* --------------------------------------------------------------------------
  *  C / C++ / Java 扫描：支持行注释、块注释、字符串常量
  *
@@ -126,6 +311,7 @@ static bool scanCLike(std::istream& in, Stats& st)
 {
     std::string line;
     bool inBlock = false;               /* 是否正处于块注释之中 */
+    std::vector<std::string> tokens;
 
     while (std::getline(in, line))
     {
@@ -137,6 +323,7 @@ static bool scanCLike(std::istream& in, Stats& st)
             continue;
         }
 
+        std::string codeLine(line.size(), ' ');
         bool hasCode  = false;
         std::size_t i = 0;
         const std::size_t n = line.size();
@@ -187,10 +374,17 @@ static bool scanCLike(std::istream& in, Stats& st)
             }
 
             if (!std::isspace(static_cast<unsigned char>(c)))
+            {
                 hasCode = true;
+                codeLine[i] = c;
+            }
+            else
+                codeLine[i] = c;
 
             ++i;
         }
+
+        appendTokens(codeLine, tokens);
 
         if (hasCode)
             ++st.code;
@@ -198,6 +392,7 @@ static bool scanCLike(std::istream& in, Stats& st)
             ++st.comment;               /* 本行非空但无代码 -> 纯注释行 */
     }
 
+    st.functions = countCLikeFunctions(tokens);
     return !inBlock;
 }
 
@@ -222,6 +417,7 @@ static bool scanPython(std::istream& in, Stats& st)
         }
 
         bool hasCode  = false;
+        std::string codeLine(line.size(), ' ');
         std::size_t i = 0;
         const std::size_t n = line.size();
 
@@ -272,9 +468,32 @@ static bool scanPython(std::istream& in, Stats& st)
             }
 
             if (!std::isspace(static_cast<unsigned char>(c)))
+            {
                 hasCode = true;
+                codeLine[i] = c;
+            }
+            else
+                codeLine[i] = c;
 
             ++i;
+        }
+
+        /* Python 函数定义以语句形式出现在行首，可跨行书写参数列表。 */
+        std::size_t p = 0;
+        while (p < codeLine.size() && std::isspace(static_cast<unsigned char>(codeLine[p]))) ++p;
+        if (codeLine.compare(p, 5, "async") == 0
+            && (p + 5 == codeLine.size() || !isIdentifierPart(codeLine[p + 5])))
+        {
+            p += 5;
+            while (p < codeLine.size() && std::isspace(static_cast<unsigned char>(codeLine[p]))) ++p;
+        }
+        if (codeLine.compare(p, 3, "def") == 0
+            && (p + 3 == codeLine.size() || !isIdentifierPart(codeLine[p + 3])))
+        {
+            p += 3;
+            while (p < codeLine.size() && std::isspace(static_cast<unsigned char>(codeLine[p]))) ++p;
+            if (p < codeLine.size() && isIdentifierStart(codeLine[p]))
+                ++st.functions;
         }
 
         if (hasCode)
@@ -458,7 +677,8 @@ static void printUsage(const char* prog)
         << "  -h      显示本帮助\n"
         << "\n"
         << "支持语言: C (.c .h) | C++ (.cpp .cc .cxx .hpp .hh .hxx)\n"
-        << "          Java (.java) | Python (.py .pyw)\n";
+        << "          Java (.java) | Python (.py .pyw)\n"
+        << "函数数统计有函数体的定义（空函数体计数；不计原型和 lambda）。\n";
 }
 
 int main(int argc, char** argv)
@@ -601,11 +821,12 @@ int main(int argc, char** argv)
     /* ---------- 4. 输出统计表格 ---------- */
     const int W_LANG = 15;              /* 语言列宽 */
     const int W_NUM  = 12;              /* 数字列宽 */
-    const std::string sep(W_LANG + W_NUM * 4, '-');
+    const std::string sep(W_LANG + W_NUM * 5, '-');
 
     std::cout << sep << "\n";
     std::cout << std::left  << std::setw(W_LANG) << "Language"
               << std::right << std::setw(W_NUM)  << "files"
+                            << std::setw(W_NUM)  << "functions"
                             << std::setw(W_NUM)  << "blank"
                             << std::setw(W_NUM)  << "comment"
                             << std::setw(W_NUM)  << "code" << "\n";
@@ -616,7 +837,8 @@ int main(int argc, char** argv)
         const Stats& s = perLang[l];
 
         std::cout << std::left  << std::setw(W_LANG) << kLangName[l]
-                  << std::right << std::setw(W_NUM)  << s.files;
+                  << std::right << std::setw(W_NUM)  << s.files
+                                << std::setw(W_NUM)  << s.functions;
 
         if (simpleMode)                 /* 简化模式：blank / comment 显示 "/" */
             std::cout << std::setw(W_NUM) << "/"
@@ -630,7 +852,8 @@ int main(int argc, char** argv)
 
     std::cout << sep << "\n";
     std::cout << std::left  << std::setw(W_LANG) << "SUM"
-              << std::right << std::setw(W_NUM)  << total.files;
+              << std::right << std::setw(W_NUM)  << total.files
+                            << std::setw(W_NUM)  << total.functions;
 
     if (simpleMode)
         std::cout << std::setw(W_NUM) << "/"

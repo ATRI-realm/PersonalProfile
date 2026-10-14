@@ -21,7 +21,7 @@
   <main class="main">
     <p class="eyebrow">CodeLine · C / C++ / Java / Python</p>
     <h1>代码行统计</h1>
-    <p class="intro">选择一个项目文件夹，统计其中的源码文件、空行、注释行和代码行。规则与命令行版一致，自动跳过常见依赖和构建目录。</p>
+    <p class="intro">选择一个项目文件夹，统计其中的源码文件、函数/方法定义、空行、注释行和代码行。规则与命令行版一致，自动跳过常见依赖和构建目录。</p>
     <section class="card" aria-label="选择要统计的文件夹">
       <div class="picker">
         <label class="pick-btn" for="folderPicker">选择文件夹</label>
@@ -35,13 +35,13 @@
     <section class="card results" id="results" hidden aria-live="polite">
       <div class="results-head"><h2>统计结果</h2><span class="root-name" id="rootName"></span></div>
       <div class="table-wrap"><table>
-        <thead><tr><th>语言</th><th>文件数</th><th>空行</th><th>注释行</th><th>代码行</th></tr></thead>
+        <thead><tr><th>语言</th><th>文件数</th><th>函数数</th><th>空行</th><th>注释行</th><th>代码行</th></tr></thead>
         <tbody id="tableBody"></tbody>
       </table></div>
       <div class="summary"><span>源码所在目录：<strong id="dirCount">0</strong></span><span>识别源码：<strong id="fileCount">0</strong></span></div>
       <p class="notice" id="notice" hidden></p>
     </section>
-    <p class="foot">统计范围：.c / .h、C++ 常用头源文件、.java、.py / .pyw。隐藏目录、版本控制目录和常见构建目录会被跳过。</p>
+    <p class="foot">函数数统计有函数体的函数/方法定义，空函数体也计数；不计原型、lambda 和普通代码块。Python 统计 def / async def。隐藏目录、版本控制目录和常见构建目录会被跳过。</p>
   </main>
 
   <script>
@@ -58,7 +58,7 @@
       {name:'Python', exts:['py','pyw']},
     ];
     const skippedDirs = new Set(['.git','.svn','.hg','.idea','.vs','.vscode','node_modules','obj','Debug','Release','build','dist']);
-    const fresh = () => ({files:0,blank:0,comment:0,code:0});
+    const fresh = () => ({files:0,functions:0,blank:0,comment:0,code:0});
     const isSpace = (c) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\v' || c === '\f';
     function getLines(text) {
       if (!text.length) return [];
@@ -67,6 +67,7 @@
       return lines.map(line => line.endsWith('\r') ? line.slice(0,-1) : line);
     }
     function scanCLike(text, stats) {
+      stats.functions = countCLikeFunctions(text);
       let inBlock = false;
       for (const line of getLines(text)) {
         if ([...line].every(isSpace)) { stats.blank++; continue; }
@@ -102,6 +103,7 @@
       for (const line of getLines(text)) {
         if ([...line].every(isSpace)) { stats.blank++; continue; }
         let code = false, i = 0;
+        const codeLine = Array(line.length).fill(' ');
         while (i < line.length) {
           if (triple) {
             const end = line.indexOf(triple,i);
@@ -121,12 +123,108 @@
             }
             code = true; continue;
           }
-          if (!isSpace(c)) code = true;
+          if (!isSpace(c)) { code = true; codeLine[i] = c; }
+          else codeLine[i] = c;
           i++;
+        }
+        let p = 0;
+        while (p < codeLine.length && isSpace(codeLine[p])) p++;
+        if (codeLine.slice(p,p+5).join('') === 'async' && !/[\w$]/.test(codeLine[p+5] || '')) {
+          p += 5;
+          while (p < codeLine.length && isSpace(codeLine[p])) p++;
+        }
+        if (codeLine.slice(p,p+3).join('') === 'def' && !/[\w$]/.test(codeLine[p+3] || '')) {
+          p += 3;
+          while (p < codeLine.length && isSpace(codeLine[p])) p++;
+          if (/[A-Za-z_$]/.test(codeLine[p] || '')) stats.functions++;
         }
         stats[code ? 'code' : 'comment']++;
       }
       return !triple;
+    }
+
+    function countCLikeFunctions(text) {
+      const masked = text.split('');
+      let inBlock = false;
+      for (let i = 0; i < masked.length; i++) {
+        const c = text[i], next = text[i+1];
+        if (inBlock) {
+          if (c === '*' && next === '/') { masked[i] = masked[i+1] = ' '; i++; inBlock = false; }
+          else if (c !== '\n' && c !== '\r') masked[i] = ' ';
+          continue;
+        }
+        if (c === '/' && next === '*') { masked[i] = masked[i+1] = ' '; i++; inBlock = true; continue; }
+        if (c === '/' && next === '/') {
+          while (i < masked.length && text[i] !== '\n') masked[i++] = ' ';
+          i--;
+          continue;
+        }
+        if (c === '"' || c === "'") {
+          const quote = c;
+          masked[i] = ' ';
+          for (i++; i < masked.length; i++) {
+            if (text[i] === '\\') {
+              masked[i] = ' ';
+              if (i + 1 < masked.length) { if (text[i+1] !== '\n' && text[i+1] !== '\r') masked[i+1] = ' '; i++; }
+              continue;
+            }
+            if (text[i] === quote) { masked[i] = ' '; break; }
+            if (text[i] !== '\n' && text[i] !== '\r') masked[i] = ' ';
+          }
+        }
+      }
+      const tokens = masked.join('').match(/[A-Za-z_$][\w$]*|\d+|[^\s]/g) || [];
+      const parenMate = Array(tokens.length).fill(-1), braceMate = Array(tokens.length).fill(-1);
+      const stack = [];
+      for (let i=0;i<tokens.length;i++) {
+        if (tokens[i] === '(') stack.push(i);
+        else if (tokens[i] === ')' && stack.length) { const open=stack.pop(); parenMate[open]=i; parenMate[i]=open; }
+      }
+      stack.length = 0;
+      for (let i=0;i<tokens.length;i++) {
+        if (tokens[i] === '{') stack.push(i);
+        else if (tokens[i] === '}' && stack.length) { const open=stack.pop(); braceMate[open]=i; braceMate[i]=open; }
+      }
+      const excluded = new Set(['if','for','while','switch','catch','synchronized','foreach','sizeof','alignof','decltype','typeid','static_assert','requires','noexcept','throw','new','delete','return','else','do']);
+      let count = 0;
+      for (let close=0;close<tokens.length;close++) {
+        if (tokens[close] !== ')' || parenMate[close] < 0) continue;
+        const open=parenMate[close], before=tokens[open-1] || '';
+        let declarator = /^[A-Za-z_$]/.test(before) && !excluded.has(before);
+        if (declarator && open >= 2 && ['@','=',' ',',','.','->',':','new'].includes(tokens[open-2])) {
+          const accessLabel = tokens[open-2] === ':' && open >= 3 && ['public','protected','private'].includes(tokens[open-3]);
+          if (!accessLabel) declarator=false;
+        }
+        if (!declarator) {
+          for (let j=Math.max(0,open-12);j<open;j++) {
+            if (tokens[j] === 'operator') { declarator=true; break; }
+            if (tokens[j] === ';' || tokens[j] === '{' || tokens[j] === '}') break;
+          }
+        }
+        if (!declarator) continue;
+        let hasCtorInitializer=false, foundBody=false;
+        for (let i=close+1;i<tokens.length;) {
+          const token=tokens[i];
+          if (token === '{') {
+            const after=braceMate[i] >= 0 ? tokens[braceMate[i]+1] : '';
+            if (hasCtorInitializer && braceMate[i] >= 0 && (after === ',' || after === '{')) { i=braceMate[i]+1; continue; }
+            foundBody=true; break;
+          }
+          if (token === ';' || token === '=' || token === '}') break;
+          if (token === ':') hasCtorInitializer=true;
+          if (token === '(') {
+            const qualifierCall=['noexcept','throw','requires','decltype'].includes(tokens[i-1]);
+            if (!qualifierCall && !hasCtorInitializer) break;
+            if (parenMate[i] < 0) break;
+            i=parenMate[i]+1; continue;
+          }
+          if (token === ')') break;
+          if (token === ',' && !hasCtorInitializer) break;
+          i++;
+        }
+        if (foundBody) count++;
+      }
+      return count;
     }
     function isSkippedPath(path) {
       const parts = (path || '').split('/');
@@ -145,7 +243,7 @@
       for (const lang of languages) {
         const s = stats.get(lang.name); Object.keys(totals).forEach(key => totals[key] += s[key]);
         const row = document.createElement('tr');
-        [lang.name,s.files,s.blank,s.comment,s.code].forEach((value,index) => {
+        [lang.name,s.files,s.functions,s.blank,s.comment,s.code].forEach((value,index) => {
           const cell = document.createElement(index === 0 ? 'th' : 'td');
           if (index === 0) cell.scope = 'row';
           cell.textContent = typeof value === 'number' ? number.format(value) : value;
@@ -154,7 +252,7 @@
         tableBody.append(row);
       }
       const sum = document.createElement('tr');
-      ['合计',totals.files,totals.blank,totals.comment,totals.code].forEach((value,index) => {
+      ['合计',totals.files,totals.functions,totals.blank,totals.comment,totals.code].forEach((value,index) => {
         const cell = document.createElement(index === 0 ? 'th' : 'td');
         if (index === 0) cell.scope = 'row';
         cell.textContent = typeof value === 'number' ? number.format(value) : value;
