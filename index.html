@@ -7,7 +7,7 @@
     · 城市：成都（已填）      · 期望岗位：暂不填（hero 里有注释说明怎么加）
     · 经历时间线：整段已注释掉，等你有了内容取消注释即可
     · 邮箱：3096727479@qq.com（已填）
-    · GitHub 用户名：God-realm（已填，4 处：hero、LINKS、两个「源码 ↗」）
+    · GitHub 仓库链接：https://github.com/ATRI-realm/PersonalProfile（已填，3 处：LINKS、两个「源码 ↗」）
     · 待补：一句话定位、resume.pdf、经历时间线内容
   ------------------------------------------------------------
   占位内容定位方式：搜索以下关键词即可找到并替换
@@ -23,8 +23,8 @@
     6. <title> 与 <meta name="description">
   ------------------------------------------------------------
   项目演示入口
-    · SimpleCal 的「运行」链接打开仓库根目录的 ./口算练习.html
-    · CodeLine 的「运行」链接打开仓库根目录的 ./网页统计.html
+    · SimpleCal 的「运行」链接打开 ./SimpleCal/口算练习.html
+    · CodeLine 的「运行」链接打开 ./CodeLine/网页统计.html
   ------------------------------------------------------------
   本地预览（重要）：直接双击 index.html 时浏览器会拦下 projects 里的「运行」按钮。
   在项目根目录执行 python -m http.server 8848 后访问 http://localhost:8848/ 即可。
@@ -35,7 +35,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>jjl · 个人主页</title>
-<meta name="description" content="夏映的个人主页：项目案例、技术栈与联系方式。">
+<meta name="description" content="jjl的个人主页：项目案例、技术栈与联系方式。">
 <!-- 渐变效果只在有 JS 时才生效：没 JS 或脚本出错时，内容一律直接可见，绝不空白。 -->
 <script>document.documentElement.className = 'js';</script>
 <style>
@@ -265,7 +265,7 @@ footer{padding:64px 0 72px}
   <div class="wrap">
     <div class="badge"><span class="dot"></span>欢迎联系</div>
     <h1>jjl<span class="handle"> 3096727479@qq.com</span></h1>
-    <p class="sub">现就读于四川大学计算机科学与技术专业,精通c/c++,熟练使用python,到岗时间可议</p>
+    <p class="sub">现就读于四川大学计算机科学与技术专业,精通c/c++,熟练使用python,HTML等语言,到岗时间可议</p>
     <div class="cta">
       <a class="btn primary" href="mailto:3096727479@qq.com">邮件联系 ↗</a>
       <button class="btn" id="copyMail" data-mail="3096727479@qq.com">复制邮箱</button>
@@ -279,13 +279,13 @@ footer{padding:64px 0 72px}
     <div class="wrap">
       <h2 class="sec-title">links</h2>
       <div class="links" id="linkGrid">
-        <a class="link" style="--lc:#e6edf3" href="https://github.com/ATRI-realm" target="_blank" rel="noopener">
+        <a class="link" style="--lc:#e6edf3" href="https://github.com/ATRI-realm/PersonalProfile" target="_blank" rel="noopener">
           <svg class="icon" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 .8A7.2 7.2 0 0 0 5.7 14.8c.36.07.49-.16.49-.35v-1.2c-2 .43-2.42-.97-2.42-.97-.33-.83-.8-1.05-.8-1.05-.66-.45.05-.44.05-.44.73.05 1.11.75 1.11.75.65 1.11 1.7.79 2.12.6.06-.47.25-.79.46-.97-1.6-.18-3.28-.8-3.28-3.56 0-.79.28-1.43.75-1.94-.08-.18-.32-.92.07-1.91 0 0 .6-.19 1.97.73a6.9 6.9 0 0 1 3.58 0c1.36-.92 1.96-.73 1.96-.73.39.99.15 1.73.07 1.91.47.51.75 1.15.75 1.94 0 2.77-1.69 3.38-3.3 3.56.26.23.49.67.49 1.35v2c0 .2.13.43.5.35A7.2 7.2 0 0 0 8 .8Z"/></svg>
           <span class="link-txt"><span class="link-name">GitHub</span><br><span class="link-desc">源码、开源项目与提交记录</span></span><span class="link-arrow" aria-hidden="true">↗</span>
         </a>
-        <a class="link" style="--lc:#8b949e" href="./resume.pdf">
+        <a class="link" style="--lc:#8b949e" href="./assets/jjl.pdf">
           <svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true"><path d="M4 1h5.2L13 4.8V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z"/><path d="M9 1v4h4"/></svg>
-          <span class="link-txt"><span class="link-name">PDF 简历</span><br><span class="link-desc">一页版，方便打印与转发</span></span><span class="link-arrow" aria-hidden="true">↗</span>
+          <span class="link-txt"><span class="link-name">PDF 简历</span></span><span class="link-arrow" aria-hidden="true">↗</span>
         </a>
       </div>
     </div>
@@ -323,7 +323,7 @@ footer{padding:64px 0 72px}
         <div class="tags">
           <span class="tag">C++11</span><span class="tag">原生 JavaScript</span><span class="tag">文件夹选择</span><span class="tag">字符状态机</span><span class="tag">交叉验证</span>
           <span class="spacer"></span>
-          <a class="proj-run" href="./网页统计.html" target="_blank" rel="noopener">运行</a>
+          <a class="proj-run" href="./CodeLine/网页统计.html" target="_blank" rel="noopener">运行</a>
           <a class="proj-run ghost" href="https://github.com/ATRI-realm/PersonalProfile" target="_blank" rel="noopener">源码 <i>↗</i></a>
         </div>
       </article>
@@ -343,7 +343,7 @@ footer{padding:64px 0 72px}
         <div class="tags">
           <span class="tag">Python 3.13</span><span class="tag">CLI</span><span class="tag">原生 JS 单文件</span><span class="tag">交叉验证</span><span class="tag">无头 Edge 实测</span>
           <span class="spacer"></span>
-          <a class="proj-run" href="./口算练习.html" target="_blank" rel="noopener">运行</a>
+          <a class="proj-run" href="./SimpleCal/口算练习.html" target="_blank" rel="noopener">运行</a>
           <a class="proj-run ghost" href="https://github.com/ATRI-realm/PersonalProfile" target="_blank" rel="noopener">源码 <i>↗</i></a>
         </div>
       </article>
@@ -421,7 +421,6 @@ if (typeof IntersectionObserver === 'function') {
 }
 
 console.log('%cjjl', 'font:600 20px monospace;color:#58a6ff');
-console.log('%cC++ 方向', 'font:12px monospace;color:#8b949e');
 console.log('%c联系我：3096727479@qq.com', 'font:12px monospace;color:#3fb950');
 </script>
 </body>
