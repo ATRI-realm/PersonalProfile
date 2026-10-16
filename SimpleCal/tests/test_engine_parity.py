@@ -87,6 +87,9 @@ fs.writeFileSync(process.argv[4], JSON.stringify(out), 'utf8');
 # 参数组合刻意铺开：运算符子集、单/双运算符、配比、三种括号模式、
 # 数值范围、九九表的四组边界、三条过滤开关、加权抽样，以及最宽约束。
 CASES = [
+    {"name": "range-10", "payload": {"count": 100, "seed": 10, "max_value": 10, "max_result": 10}},
+    {"name": "range-20", "payload": {"count": 100, "seed": 20, "max_value": 20, "max_result": 20}},
+    {"name": "zero-factors", "payload": {"count": 100, "seed": 0, "min_value": 0, "mul_min": 0, "exclude_zero_forms": False}},
     {"name": "default", "payload": {"count": 150, "seed": 20260923}},
     {"name": "ops-addsub", "payload": {"count": 150, "seed": 11, "ops": ["+", "-"]}},
     {"name": "ops-mul", "payload": {"count": 150, "seed": 12, "ops": ["*"]}},

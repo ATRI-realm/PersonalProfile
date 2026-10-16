@@ -161,24 +161,28 @@ def solvable_ops(cfg: Config) -> list[str]:
 def gen_pair(cfg: Config, rng: random.Random, op: str) -> tuple[int, int]:
     """生成一对满足全部约束的 ``(左操作数, 右操作数)``。
 
-    除法的构造顺序特殊：**先定除数与商，再乘出被除数**。
+    除法按合法整数对等概率抽样，再由除数与商乘出被除数。
     这样能一次性保证"整除"与"被除数不超过上界"，
-    而且避免了"先随机取被除数、再找约数"导致的偏斜
-    （那样会让约数多的合数出现得过于频繁）。
+    若等概率选除数，大除数只对应商 1，会让 n÷n 过于集中。
+    按每个除数的合法商数量分配名额，可消除这个额外偏斜。
     """
     if op == "/":
         floor = divisor_floor(cfg)
-        divisors = [
-            d
-            for d in range(floor, cfg.max_value + 1)
-            if _quotient_range(cfg, d) is not None
-        ]
-        if not divisors:
+        ranges = []
+        for divisor in range(floor, cfg.max_value + 1):
+            bounds = _quotient_range(cfg, divisor)
+            if bounds is not None:
+                ranges.append((divisor, *bounds))
+        total = sum(high - low + 1 for _, low, high in ranges)
+        if not total:
             raise NoSolution(op, cfg.max_value)
-        divisor = rng.choice(divisors)
-        quotient_low, quotient_high = _quotient_range(cfg, divisor)  # type: ignore[misc]
-        quotient = rng.randint(quotient_low, quotient_high)
-        return divisor * quotient, divisor
+        ticket = rng.randrange(total)
+        for divisor, low, high in ranges:
+            size = high - low + 1
+            if ticket < size:
+                return divisor * (low + ticket), divisor
+            ticket -= size
+        raise AssertionError("除法候选计数与抽样不一致")
 
     if op == "*":
         mul_low, mul_high = mul_bounds(cfg)

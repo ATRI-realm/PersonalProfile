@@ -69,6 +69,7 @@ class _Parser:
         self._tokens = tokens
         self._pos = 0
         self.values: list[int] = []
+        self.operations: list[tuple[str, int, int]] = []
 
     def parse(self) -> int:
         value = self._expr()
@@ -95,6 +96,7 @@ class _Parser:
         while self._peek_op() in ("+", "-"):
             op = chr(self._take()[1])
             right = self._term()
+            self.operations.append((op, value, right))
             value = value + right if op == "+" else value - right
             self.values.append(value)
         return value
@@ -104,6 +106,7 @@ class _Parser:
         while self._peek_op() in ("*", "/"):
             op = chr(self._take()[1])
             right = self._factor()
+            self.operations.append((op, value, right))
             if op == "*":
                 value = value * right
             else:
@@ -130,15 +133,21 @@ class _Parser:
         raise InvalidExpression(f"不应出现的符号 {char!r}")
 
 
-def eval_text(text: str) -> tuple[int, list[int]]:
+def eval_text(
+    text: str, *, operations: list[tuple[str, int, int]] | None = None
+) -> tuple[int, list[int]]:
     """按标准优先级求值题面文本。
 
     返回 ``(最终值, 全部数值)``，其中"全部数值"包含每个字面量与每一步中间结果，
+    传入 ``operations`` 时另记录每步的运算符和左右操作数，用于检查实际乘法因子。
     供调用方做范围检查。任何非法情形（解析失败、除零、不整除）抛
     ``InvalidExpression``。
     """
     parser = _Parser(_lex(text))
-    return parser.parse(), parser.values
+    value = parser.parse()
+    if operations is not None:
+        operations.extend(parser.operations)
+    return value, parser.values
 
 
 def validate_problem(problem: Problem, cfg: Config) -> list[str]:
@@ -184,7 +193,8 @@ def validate_problem(problem: Problem, cfg: Config) -> list[str]:
                     )
 
     try:
-        value, values = eval_text(problem.text)
+        operations: list[tuple[str, int, int]] = []
+        value, values = eval_text(problem.text, operations=operations)
     except InvalidExpression as exc:
         errors.append(f"题面无法解析：{exc}")
     else:
@@ -197,6 +207,10 @@ def validate_problem(problem: Problem, cfg: Config) -> list[str]:
                 errors.append(f"题面求值过程中出现负数 {item}")
             if item > cfg.max_result:
                 errors.append(f"题面求值过程中出现 {item}，超过上界 {cfg.max_result}")
+        mul_low, mul_high = mul_bounds(cfg)
+        for op, left, right in operations:
+            if op == "*" and not all(mul_low <= x <= mul_high for x in (left, right)):
+                errors.append(f"题面实际乘法 {left} × {right} 超出九九表区间 [{mul_low}, {mul_high}]")
 
     if not cfg.allow_zero_result and problem.answer == 0:
         errors.append("结果为 0，但配置要求不允许")

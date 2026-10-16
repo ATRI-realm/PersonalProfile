@@ -3,9 +3,10 @@
 括号决策完全交给"求值比对"（对应计划书 §3.2 / §3.3）：
 
 1. 先按**最保守**的方式渲染——每个内部节点都加括号。
-2. 再逐个尝试去掉某个内部节点的括号，只有在**同时满足**下面两个条件时才确认去掉：
+2. 再逐个尝试去掉某个内部节点的括号，只有同时满足下面条件才确认去掉：
    * 按标准优先级重新求值，结果与设计值相同；
    * 求值过程中**每一步中间结果**也在 ``[0, max_result]`` 内。
+   * 按题面实际顺序执行的乘法，其两个因子仍在配置的九九表区间内。
 
 第二条是必需的。反例：``6 × (88 ÷ 11)`` 的值与展开后的 ``6 × 88 ÷ 11`` 相同，
 但学生按标准优先级实际要先算出 ``6 × 88 = 528``——虽然最终答案对，
@@ -22,7 +23,7 @@ from __future__ import annotations
 import unicodedata
 from typing import Iterable
 
-from .config import OP_DISPLAY, Config
+from .config import OP_DISPLAY, Config, mul_bounds
 from .model import Node, Problem
 from .validate import InvalidExpression, eval_text
 
@@ -44,14 +45,19 @@ def plain_text(root: Node) -> str:
 
 
 def _is_acceptable(cfg: Config, text: str, target: int) -> bool:
-    """去掉括号后的写法是否与设计值等价，且展开过程全程不越界。"""
+    """去掉括号后结果等价、计算过程不越界，实际乘法因子仍合法。"""
     try:
-        value, values = eval_text(text)
+        operations: list[tuple[str, int, int]] = []
+        value, values = eval_text(text, operations=operations)
     except InvalidExpression:
         return False
     if value != target:
         return False
-    return all(0 <= item <= cfg.max_result for item in values)
+    mul_low, mul_high = mul_bounds(cfg)
+    return all(0 <= item <= cfg.max_result for item in values) and all(
+        op != "*" or all(mul_low <= x <= mul_high for x in (left, right))
+        for op, left, right in operations
+    )
 
 
 def render_expr(root: Node, cfg: Config) -> str:

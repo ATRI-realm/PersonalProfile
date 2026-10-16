@@ -28,7 +28,7 @@ def configs_for_scan() -> list[Config]:
         Config(min_value=1),
         Config(max_value=20, mul_max=9),
         Config(max_value=99, mul_max=99),
-        Config(mul_min=0),  # 0 参与乘法：覆盖 0 作乘法操作数的分支
+        Config(mul_min=0, min_value=0, exclude_zero_forms=False),
         Config(ops=("+", "-")),
         Config(ops=("/",), max_value=30),
         Config(ops=("*",), max_value=99, mul_max=99),
@@ -112,6 +112,24 @@ class TestCandidateSets(unittest.TestCase):
 
 
 class TestGenPair(unittest.TestCase):
+    def test_division_samples_each_legal_pair_once_per_ticket(self) -> None:
+        """逐一覆盖抽样名额，与暴力枚举对齐，避免只抽除数导致商 1 偏多。"""
+        class TicketRandom(random.Random):
+            def __init__(self, ticket):
+                self.ticket = ticket
+
+            def randrange(self, stop):
+                assert 0 <= self.ticket < stop
+                return self.ticket
+
+        for minimum in (0, 1, 3):
+            cfg = Config(min_value=minimum, max_value=20)
+            expected = {(a, b) for a in range(minimum, 21)
+                        for b in range(max(1, minimum), 21) if a % b == 0}
+            actual = [gen_pair(cfg, TicketRandom(i), "/") for i in range(len(expected))]
+            self.assertEqual(set(actual), expected)
+            self.assertEqual(len(actual), len(set(actual)))
+
     def test_generated_pairs_satisfy_every_constraint(self) -> None:
         rng = random.Random(20260916)
         violations: list[str] = []

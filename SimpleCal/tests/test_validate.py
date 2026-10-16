@@ -6,6 +6,7 @@ import unittest
 
 from simple_calculate.config import Config
 from simple_calculate.model import Node, Problem
+from simple_calculate.render import render_expr
 from simple_calculate.validate import InvalidExpression, eval_text, validate_problem
 
 
@@ -54,6 +55,17 @@ class TestEvalText(unittest.TestCase):
 
 
 class TestValidateProblem(unittest.TestCase):
+    def test_render_preserves_table_constraint_after_parenthesis_removal(self) -> None:
+        root = Node(value=12, op="*", left=Node.leaf(2),
+                    right=Node(value=6, op="/", left=Node.leaf(18), right=Node.leaf(3)))
+        cfg = Config()
+        self.assertEqual(render_expr(root, cfg), "2 × (18 ÷ 3)")
+        self.assertEqual(validate_problem(self.make(root, "2 × (18 ÷ 3)"), cfg), [])
+        errors = validate_problem(self.make(root, "2 × 18 ÷ 3"), cfg)
+        self.assertTrue(any("实际乘法" in message for message in errors), errors)
+        # 放宽因子区间后才允许省去这对括号。
+        self.assertEqual(render_expr(root, Config(mul_max=99)), "2 × 18 ÷ 3")
+
     def make(self, root: Node, text: str) -> Problem:
         return Problem(
             root=root, text=text, answer=root.value, text_norm=text.replace(" ", "")

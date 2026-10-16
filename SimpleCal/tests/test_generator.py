@@ -130,8 +130,8 @@ class TestConfigurationsAndModes(unittest.TestCase):
     def test_paren_mode_necessary_avoids_redundant_parentheses(self) -> None:
         """necessary 模式下，括号绝不多余。
 
-        "必需"有三种情形，去括号后必然是其中一种：
-        算式非法、语义改变、或展开过程越界（例如 ``80 + (34 − 23)``
+        "必需"包括算式非法、语义改变、实际因子超出九九表或展开过程越界。
+        例如 ``80 + (34 − 23)``
         去掉括号后要先算 ``80 + 34 = 114``）。
         """
         cfg = Config(count=600, seed=10, paren="necessary", operator_counts=(2,))
@@ -143,14 +143,19 @@ class TestConfigurationsAndModes(unittest.TestCase):
             checked += 1
             stripped = problem.text.replace("(", "").replace(")", "")
             try:
-                stripped_value, stripped_values = eval_text(stripped)
+                operations = []
+                stripped_value, stripped_values = eval_text(stripped, operations=operations)
             except InvalidExpression:
                 continue  # 情形一：算式直接非法
             if stripped_value != problem.answer:
                 continue  # 情形二：语义改变
-            # 情形三：值相同，则必须存在越界或为负的中间结果
+            # 值相同也可能让实际乘法的因子超出九九表。
+            invalid_mul = any(
+                op == "*" and any(not cfg.mul_min <= x <= cfg.mul_max for x in (a, b))
+                for op, a, b in operations
+            )
             self.assertTrue(
-                any(v < 0 or v > cfg.max_result for v in stripped_values),
+                invalid_mul or any(v < 0 or v > cfg.max_result for v in stripped_values),
                 f"{problem.text!r} 的括号去掉后既不改语义也不越界，属于多余的括号",
             )
         self.assertGreater(checked, 0, "necessary 模式下未出现任何含括号的题")
@@ -203,7 +208,8 @@ class TestConfigurationsAndModes(unittest.TestCase):
         这条路径曾经直接整数除零崩溃——``0 × y`` 恒为 0、不可能越界，
         但求候选上界的 ``⌊max_result / 操作数⌋`` 在操作数为 0 时会先炸。
         """
-        cfg = Config(count=400, seed=15, ops=("*",), mul_min=0, operator_counts=(1,))
+        cfg = Config(count=400, seed=15, ops=("*",), mul_min=0, min_value=0,
+                     exclude_zero_forms=False, operator_counts=(1,))
         problems = scan(cfg)
         for problem in problems:
             node = problem.root
@@ -217,7 +223,7 @@ class TestConfigurationsAndModes(unittest.TestCase):
 
     def test_mul_min_zero_works_in_two_operator_problems(self) -> None:
         """0 作为乘法操作数时，双运算符题（含括号结构）也要正常生成。"""
-        cfg = Config(count=600, seed=16, mul_min=0)
+        cfg = Config(count=600, seed=16, mul_min=0, min_value=0, exclude_zero_forms=False)
         problems = scan(cfg)
         self.assertTrue(any(p.operator_count == 2 for p in problems))
 
