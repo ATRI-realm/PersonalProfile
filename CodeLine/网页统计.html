@@ -11,7 +11,7 @@
     .top{background:#101722;color:white;padding:15px 24px}.top-in,.main{width:min(920px,100% - 40px);margin:auto}.top-in{display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{font-weight:650;letter-spacing:.02em}.top a{color:#b8c9dc;text-decoration:none;font-size:13px}.top a:hover{color:white}
     .main{padding:48px 0 64px}.eyebrow{margin:0 0 8px;color:var(--blue);font:12px/1.4 ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase}h1{margin:0;font-size:clamp(26px,5vw,38px);line-height:1.25;letter-spacing:-.03em}.intro{max-width:680px;margin:14px 0 28px;color:var(--muted)}
     .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 28px rgba(23,39,59,.055);padding:24px}.picker{display:flex;align-items:center;gap:15px;flex-wrap:wrap}.pick-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:8px;background:var(--blue);color:white;font-weight:600;cursor:pointer;transition:background .15s}.pick-btn:hover{background:var(--blue-dark)}.pick-btn:focus-within{outline:3px solid #a9cff3;outline-offset:2px}input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}.pick-note{color:var(--muted);font-size:13px}.privacy{margin:17px 0 0;color:var(--green);font-size:13px}.status{min-height:25px;margin:18px 0 0;color:var(--muted);font-size:13px}.status[aria-busy=true]{color:var(--blue)}
-    .results{margin-top:20px;overflow:hidden}.results[hidden]{display:none}.results-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:0 0 14px}.results-head h2{margin:0;font-size:18px}.root-name{color:var(--muted);font-size:13px;overflow-wrap:anywhere}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;white-space:nowrap}th,td{padding:11px 12px;border-top:1px solid var(--line);text-align:right}th{color:var(--muted);font-size:12px;font-weight:600}th:first-child,td:first-child{text-align:left}tbody tr:last-child{font-weight:700;background:#f5f8fb}.summary{display:flex;gap:16px;flex-wrap:wrap;margin-top:17px;color:var(--muted);font-size:13px}.summary strong{color:var(--ink)}.notice{margin:17px 0 0;padding:10px 12px;border-radius:8px;background:#fbf5e6;color:var(--amber);font-size:13px}.notice[hidden]{display:none}.foot{margin-top:18px;color:var(--muted);font-size:12px}
+    .results{margin-top:20px;overflow:hidden}.results[hidden]{display:none}.results-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:0 0 14px}.results-head h2{margin:0;font-size:18px}.root-name{color:var(--muted);font-size:13px;overflow-wrap:anywhere}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;white-space:nowrap}th,td{padding:11px 12px;border:1px solid #333;text-align:right}th{color:var(--muted);font-size:12px;font-weight:600}th:first-child,td:first-child{text-align:left}.summary{display:flex;gap:16px;flex-wrap:wrap;margin-top:17px;color:var(--muted);font-size:13px}.summary strong{color:var(--ink)}.notice{margin:17px 0 0;padding:10px 12px;border-radius:8px;background:#fbf5e6;color:var(--amber);font-size:13px}.notice[hidden]{display:none}.foot{margin-top:18px;color:var(--muted);font-size:12px}
     button:focus-visible,a:focus-visible{outline:3px solid #8fbbe7;outline-offset:3px;border-radius:4px}@media(max-width:600px){.top{padding:13px 17px}.top-in,.main{width:min(100% - 28px,920px)}.main{padding-top:34px}.card{padding:18px}.results-head{align-items:flex-start;flex-direction:column;gap:3px}th,td{padding:9px 10px}}
     @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
   </style>
@@ -19,14 +19,14 @@
 <body>
   <header class="top"><div class="top-in"><span class="brand">jjl · 项目演示</span><a href="../index.html">返回个人主页 ↗</a></div></header>
   <main class="main">
-    <p class="eyebrow">CodeLine · C / C++ / Java / Python</p>
+    <p class="eyebrow">CodeLine · C / C++ / JAVA / Python / C#</p>
     <h1>代码行统计</h1>
     <p class="intro">选择一个项目文件夹，统计其中的源码文件、函数/方法定义、空行、注释行和代码行。规则与命令行版一致，自动跳过常见依赖和构建目录。</p>
     <section class="card" aria-label="选择要统计的文件夹">
       <div class="picker">
         <label class="pick-btn" for="folderPicker">选择文件夹</label>
         <input id="folderPicker" type="file" webkitdirectory directory multiple aria-label="选择文件夹">
-        <span class="pick-note">支持 C、C++、Java、Python；也可在文件选择框中选择多个文件</span>
+        <span class="pick-note">支持 C、C++、JAVA、Python、C#；也可在文件选择框中选择多个文件</span>
       </div>
       <p class="privacy">统计在你的浏览器中完成，文件内容不会上传。</p>
       <p class="status" id="status" role="status" aria-live="polite">选择文件夹后自动开始统计。</p>
@@ -35,13 +35,13 @@
     <section class="card results" id="results" hidden aria-live="polite">
       <div class="results-head"><h2>统计结果</h2><span class="root-name" id="rootName"></span></div>
       <div class="table-wrap"><table>
-        <thead><tr><th>语言</th><th>文件数</th><th>函数数</th><th>空行</th><th>注释行</th><th>代码行</th></tr></thead>
+        <thead><tr><th>语言</th><th>源文件数</th><th>代码行数</th><th>空行数</th><th>注释行数</th><th>函数个数</th><th>最大值</th><th>最小值</th><th>均值</th><th>中位数</th></tr></thead>
         <tbody id="tableBody"></tbody>
       </table></div>
       <div class="summary"><span>源码所在目录：<strong id="dirCount">0</strong></span><span>识别源码：<strong id="fileCount">0</strong></span></div>
       <p class="notice" id="notice" hidden></p>
     </section>
-    <p class="foot">函数数统计有函数体的函数/方法定义，空函数体也计数；不计原型、lambda 和普通代码块。Python 统计 def / async def。隐藏目录、版本控制目录和常见构建目录会被跳过。</p>
+    <p class="foot">最大值、最小值、均值和中位数按各语言每个源文件的代码行数计算；空文件计入，无源文件时为 0；均值和中位数保留两位小数。函数数统计有函数体的函数/方法定义，空函数体也计数；不计原型、lambda 和普通代码块。Python 统计 def / async def。隐藏目录、版本控制目录和常见构建目录会被跳过。</p>
   </main>
 
   <script>
@@ -54,8 +54,9 @@
     const languages = [
       {name:'C', exts:['c','h']},
       {name:'C++', exts:['cpp','cc','cxx','c++','hpp','hh','hxx','h++','inl']},
-      {name:'Java', exts:['java']},
+      {name:'JAVA', exts:['java']},
       {name:'Python', exts:['py','pyw']},
+      {name:'C#', exts:['cs']},
     ];
     const skippedDirs = new Set(['.git','.svn','.hg','.idea','.vs','.vscode','node_modules','obj','Debug','Release','build','dist']);
     const fresh = () => ({files:0,functions:0,blank:0,comment:0,code:0});
@@ -242,8 +243,12 @@
       tableBody.replaceChildren();
       for (const lang of languages) {
         const s = stats.get(lang.name); Object.keys(totals).forEach(key => totals[key] += s[key]);
+        const values = [...s.fileCodeLines].sort((a,b) => a-b), n = values.length;
+        const maximum = n ? values[n-1] : 0, minimum = n ? values[0] : 0;
+        const mean = n ? s.code / n : 0;
+        const median = n ? (n % 2 ? values[Math.floor(n/2)] : (values[n/2-1] + values[n/2])/2) : 0;
         const row = document.createElement('tr');
-        [lang.name,s.files,s.functions,s.blank,s.comment,s.code].forEach((value,index) => {
+        [lang.name,s.files,s.code,s.blank,s.comment,s.functions,maximum,minimum,mean.toFixed(2),median.toFixed(2)].forEach((value,index) => {
           const cell = document.createElement(index === 0 ? 'th' : 'td');
           if (index === 0) cell.scope = 'row';
           cell.textContent = typeof value === 'number' ? number.format(value) : value;
@@ -251,21 +256,13 @@
         });
         tableBody.append(row);
       }
-      const sum = document.createElement('tr');
-      ['合计',totals.files,totals.functions,totals.blank,totals.comment,totals.code].forEach((value,index) => {
-        const cell = document.createElement(index === 0 ? 'th' : 'td');
-        if (index === 0) cell.scope = 'row';
-        cell.textContent = typeof value === 'number' ? number.format(value) : value;
-        sum.append(cell);
-      });
-      tableBody.append(sum);
       document.getElementById('fileCount').textContent = number.format(totals.files);
     }
     const yieldUI = () => new Promise(resolve => requestAnimationFrame(resolve));
     picker.addEventListener('change', async () => {
       const all = Array.from(picker.files || []);
       if (!all.length) return;
-      const stats = new Map(languages.map(lang => [lang.name,fresh()]));
+      const stats = new Map(languages.map(lang => [lang.name,{...fresh(),fileCodeLines:[]}]));
       const sourceFiles = all.map(file => ({file,index:languageFor(file)})).filter(item => item.index >= 0 && !isSkippedPath(item.file.webkitRelativePath));
       const directories = new Set(sourceFiles.map(item => item.file.webkitRelativePath ? item.file.webkitRelativePath.split('/').slice(0,-1).join('/') : ''));
       let skipped = 0, unclosed = 0;
@@ -280,6 +277,7 @@
           if (!closed) unclosed++;
           const target = stats.get(languages[index].name);
           Object.keys(s).forEach(key => target[key] += s[key]);
+          target.fileCodeLines.push(s.code);
         } catch { skipped++; }
         if (i % 20 === 0 || i === sourceFiles.length - 1) {
           statusEl.textContent = `正在统计 ${number.format(i + 1)} / ${number.format(sourceFiles.length)} 个源码文件…`;

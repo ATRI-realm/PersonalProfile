@@ -2,7 +2,7 @@
  *  loc.cpp  --  代码行统计工具 (Lines of Code Counter)
  * ----------------------------------------------------------------------------
  *  功能：
- *      递归扫描指定目录，统计 C / C++ / Java / Python 源文件的
+ *      递归扫描指定目录，统计 C / C++ / Java / Python / C# 源文件的
  *      文件数(files)、函数数(functions)、空行(blank)、注释行(comment)、代码行(code)，
  *      并按语言分类汇总输出表格。
  *
@@ -32,6 +32,7 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -53,13 +54,14 @@ enum LangId
     LANG_CPP,       /* C++ */
     LANG_JAVA,      /* Java*/
     LANG_PYTHON,    /* Python */
+    LANG_CSHARP,    /* C# */
     LANG_COUNT
 };
 
 /* 表格中显示的语言名（顺序即输出顺序） */
 static const char* const kLangName[LANG_COUNT] =
 {
-    "C", "C++", "Java", "Python"
+    "C", "C++", "JAVA", "Python", "C#"
 };
 
 /* 每种语言支持的扩展名，以 NULL 结尾
@@ -70,7 +72,8 @@ static const char* const kLangExt[LANG_COUNT][12] =
     { "c", "h", NULL },                                                   /* C      */
     { "cpp", "cc", "cxx", "c++", "hpp", "hh", "hxx", "h++", "inl", NULL },/* C++    */
     { "java", NULL },                                                     /* Java   */
-    { "py", "pyw", NULL }                                                 /* Python */
+    { "py", "pyw", NULL },                                                 /* Python */
+    { "cs", NULL }                                                       /* C# */
 };
 
 /* ==========================================================================
@@ -85,6 +88,8 @@ struct Stats
     long long comment;  /* 注释行数     */
     long long code;     /* 代码行数     */
 
+    std::vector<long long> fileCodeLines; /* 每个源文件的代码行数 */
+
     Stats() : files(0), functions(0), blank(0), comment(0), code(0) {}
 
     void add(const Stats& o)
@@ -94,6 +99,7 @@ struct Stats
         blank   += o.blank;
         comment += o.comment;
         code    += o.code;
+        fileCodeLines.push_back(o.code);
     }
 };
 
@@ -677,12 +683,37 @@ static void printUsage(const char* prog)
         << "  -h      显示本帮助\n"
         << "\n"
         << "支持语言: C (.c .h) | C++ (.cpp .cc .cxx .hpp .hh .hxx)\n"
-        << "          Java (.java) | Python (.py .pyw)\n"
+        << "          JAVA (.java) | Python (.py .pyw) | C# (.cs)\n"
         << "函数数统计有函数体的定义（空函数体计数；不计原型和 lambda）。\n";
+}
+
+/* UTF-8 中文字符按两个终端列宽补齐，保证表格边框对齐。 */
+static void printCell(const std::string& text, int width, bool left = false)
+{
+    int displayWidth = 0;
+    for (std::size_t i = 0; i < text.size(); ++i)
+    {
+        const unsigned char c = static_cast<unsigned char>(text[i]);
+        if (c < 0x80) ++displayWidth;
+        else if ((c & 0xc0) != 0x80) displayWidth += 2;
+    }
+    const std::string padding(static_cast<std::size_t>(std::max(0, width - displayWidth)), ' ');
+    std::cout << " " << (left ? text + padding : padding + text) << " |";
+}
+
+template <typename T>
+static std::string asText(T value)
+{
+    std::ostringstream out;
+    out << value;
+    return out.str();
 }
 
 int main(int argc, char** argv)
 {
+#ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+#endif
     std::string root;
     bool simpleMode = false;
 
@@ -748,7 +779,6 @@ int main(int argc, char** argv)
 
     /* ---------- 3. 遍历目录，统计各类文件 ---------- */
     Stats perLang[LANG_COUNT];
-    Stats total;
     long long skippedFiles = 0;
     long long unterminated = 0;         /* 结束时仍处于注释状态的文件数 */
 
@@ -814,56 +844,44 @@ int main(int argc, char** argv)
             fin.close();
 
             perLang[lang].add(st);
-            total.add(st);
         }
     }
 
     /* ---------- 4. 输出统计表格 ---------- */
-    const int W_LANG = 15;              /* 语言列宽 */
-    const int W_NUM  = 12;              /* 数字列宽 */
-    const std::string sep(W_LANG + W_NUM * 5, '-');
-
-    std::cout << sep << "\n";
-    std::cout << std::left  << std::setw(W_LANG) << "Language"
-              << std::right << std::setw(W_NUM)  << "files"
-                            << std::setw(W_NUM)  << "functions"
-                            << std::setw(W_NUM)  << "blank"
-                            << std::setw(W_NUM)  << "comment"
-                            << std::setw(W_NUM)  << "code" << "\n";
-    std::cout << sep << "\n";
-
+    const int width = 10;
+    std::string sep = "+";
+    for (int i = 0; i < 10; ++i) sep += std::string(width + 2, '-') + "+";
+    const char* headers[] = {"语言", "源文件数", "代码行数", "空行数", "注释行数",
+                             "函数个数", "最大值", "最小值", "均值", "中位数"};
+    std::cout << sep << "\n|";
+    for (int i = 0; i < 10; ++i) printCell(headers[i], width, true);
+    std::cout << "\n" << sep << "\n";
     for (int l = 0; l < LANG_COUNT; ++l)
     {
-        const Stats& s = perLang[l];
-
-        std::cout << std::left  << std::setw(W_LANG) << kLangName[l]
-                  << std::right << std::setw(W_NUM)  << s.files
-                                << std::setw(W_NUM)  << s.functions;
-
-        if (simpleMode)                 /* 简化模式：blank / comment 显示 "/" */
-            std::cout << std::setw(W_NUM) << "/"
-                      << std::setw(W_NUM) << "/";
-        else
-            std::cout << std::setw(W_NUM) << s.blank
-                      << std::setw(W_NUM) << s.comment;
-
-        std::cout << std::setw(W_NUM) << s.code << "\n";
+        Stats& s = perLang[l];
+        std::sort(s.fileCodeLines.begin(), s.fileCodeLines.end());
+        const std::size_t n = s.fileCodeLines.size();
+        const long long maximum = n ? s.fileCodeLines.back() : 0;
+        const long long minimum = n ? s.fileCodeLines.front() : 0;
+        const double mean = n ? static_cast<double>(s.code) / n : 0;
+        const double median = n ? (n % 2 ? static_cast<double>(s.fileCodeLines[n / 2])
+            : s.fileCodeLines[n / 2 - 1] / 2.0 + s.fileCodeLines[n / 2] / 2.0) : 0;
+        std::ostringstream meanText, medianText;
+        meanText << std::fixed << std::setprecision(2) << mean;
+        medianText << std::fixed << std::setprecision(2) << median;
+        std::cout << "|";
+        printCell(kLangName[l], width, true);
+        printCell(asText(s.files), width);
+        printCell(asText(s.code), width);
+        printCell(simpleMode ? "/" : asText(s.blank), width);
+        printCell(simpleMode ? "/" : asText(s.comment), width);
+        printCell(asText(s.functions), width);
+        printCell(asText(maximum), width);
+        printCell(asText(minimum), width);
+        printCell(meanText.str(), width);
+        printCell(medianText.str(), width);
+        std::cout << "\n" << sep << "\n";
     }
-
-    std::cout << sep << "\n";
-    std::cout << std::left  << std::setw(W_LANG) << "SUM"
-              << std::right << std::setw(W_NUM)  << total.files
-                            << std::setw(W_NUM)  << total.functions;
-
-    if (simpleMode)
-        std::cout << std::setw(W_NUM) << "/"
-                  << std::setw(W_NUM) << "/";
-    else
-        std::cout << std::setw(W_NUM) << total.blank
-                  << std::setw(W_NUM) << total.comment;
-
-    std::cout << std::setw(W_NUM) << total.code << "\n";
-    std::cout << sep << "\n";
 
     if (limitHit)
         std::cerr << "[warn] 目录数量达到上限 " << kMaxDirs
