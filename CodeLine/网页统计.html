@@ -41,7 +41,7 @@
       <div class="summary"><span>源码所在目录：<strong id="dirCount">0</strong></span><span>识别源码：<strong id="fileCount">0</strong></span></div>
       <p class="notice" id="notice" hidden></p>
     </section>
-    <p class="foot">最大值、最小值、均值和中位数按各语言每个源文件的代码行数计算；空文件计入，无源文件时为 0；均值和中位数保留两位小数。函数数统计有函数体的函数/方法定义，空函数体也计数；不计原型、lambda 和普通代码块。Python 统计 def / async def。隐藏目录、版本控制目录和常见构建目录会被跳过。</p>
+    <p class="foot">最大值、最小值、均值和中位数按各语言每个函数的有效代码行数计算，包含定义行和函数体（含花括号），不含空行和纯注释行；无函数时为 0。Python 从 def / async def 到缩进结束，嵌套函数单独计数，其代码也包含在外层函数中。均值和中位数保留两位小数。空函数体也计数；不计原型、lambda 和普通代码块。隐藏目录、版本控制目录和常见构建目录会被跳过。</p>
   </main>
 
   <script>
@@ -59,7 +59,7 @@
       {name:'C#', exts:['cs']},
     ];
     const skippedDirs = new Set(['.git','.svn','.hg','.idea','.vs','.vscode','node_modules','obj','Debug','Release','build','dist']);
-    const fresh = () => ({files:0,functions:0,blank:0,comment:0,code:0});
+    const fresh = () => ({files:0,functions:0,blank:0,comment:0,code:0,functionCodeLines:[]});
     const isSpace = (c) => c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\v' || c === '\f';
     function getLines(text) {
       if (!text.length) return [];
@@ -68,11 +68,15 @@
       return lines.map(line => line.endsWith('\r') ? line.slice(0,-1) : line);
     }
     function scanCLike(text, stats) {
-      stats.functions = countCLikeFunctions(text);
       let inBlock = false;
+      const tokens = [], tokenLines = [], codePrefix = [0], directives = [];
       for (const line of getLines(text)) {
+        const lineNumber = directives.length;
+        directives.push(false);
+        codePrefix.push(stats.code);
         if ([...line].every(isSpace)) { stats.blank++; continue; }
         let code = false, i = 0;
+        const codeLine = Array(line.length).fill(' ');
         while (i < line.length) {
           if (inBlock) {
             const end = line.indexOf('*/',i);
@@ -93,14 +97,25 @@
             code = true; continue;
           }
           if (!isSpace(c)) code = true;
+          codeLine[i] = c;
           i++;
         }
+        const sanitized = codeLine.join('');
+        directives[lineNumber] = sanitized.trimStart().startsWith('#');
+        for (const match of sanitized.matchAll(/[A-Za-z_$][\w$]*|\d[\w$]*|[^\s]/g)) {
+          tokens.push(match[0]); tokenLines.push(lineNumber);
+        }
         stats[code ? 'code' : 'comment']++;
+        codePrefix[codePrefix.length-1] = stats.code;
       }
+      stats.functionCodeLines = countCLikeFunctions(tokens, tokenLines, codePrefix, directives);
+      stats.functions = stats.functionCodeLines.length;
       return !inBlock;
     }
     function scanPython(text, stats) {
-      let triple = '';
+      let triple = '', continuedQuote = '';
+      const active = [];
+      let bracketDepth = 0, continuation = false;
       for (const line of getLines(text)) {
         if ([...line].every(isSpace)) { stats.blank++; continue; }
         let code = false, i = 0;
@@ -113,12 +128,17 @@
             continue;
           }
           const c = line[i];
-          if (c === '#') break;
-          if ((c === '"' || c === "'") && line[i+1] === c && line[i+2] === c) { triple = c.repeat(3); i += 3; continue; }
-          if (c === '"' || c === "'") {
-            const quote = c; i++;
+          if (!continuedQuote && c === '#') break;
+          if (!continuedQuote && (c === '"' || c === "'") && line[i+1] === c && line[i+2] === c) { triple = c.repeat(3); i += 3; continue; }
+          if (continuedQuote || c === '"' || c === "'") {
+            const quote = continuedQuote || c; codeLine[i] = '0';
+            if (!continuedQuote) i++;
+            continuedQuote = '';
             while (i < line.length) {
-              if (line[i] === '\\') { i += 2; continue; }
+              if (line[i] === '\\') {
+                if (i + 1 === line.length) continuedQuote = quote;
+                i += 2; continue;
+              }
               if (line[i] === quote) { i++; break; }
               i++;
             }
@@ -127,6 +147,18 @@
           if (!isSpace(c)) { code = true; codeLine[i] = c; }
           else codeLine[i] = c;
           i++;
+        }
+        let indent = 0;
+        for (const c of line) {
+          if (c === ' ') indent++;
+          else if (c === '\t') indent += 8 - indent % 8;
+          else if (c === '\f') indent = 0;
+          else break;
+        }
+        if (code && !continuation) {
+          while (active.length && indent <= active[active.length-1].indent) {
+            stats.functionCodeLines.push(stats.code - active.pop().codeBefore);
+          }
         }
         let p = 0;
         while (p < codeLine.length && isSpace(codeLine[p])) p++;
@@ -137,44 +169,25 @@
         if (codeLine.slice(p,p+3).join('') === 'def' && !/[\w$]/.test(codeLine[p+3] || '')) {
           p += 3;
           while (p < codeLine.length && isSpace(codeLine[p])) p++;
-          if (/[A-Za-z_$]/.test(codeLine[p] || '')) stats.functions++;
+          if (!continuation && /[A-Za-z_$]/.test(codeLine[p] || '')) {
+            stats.functions++;
+            active.push({indent,codeBefore:stats.code});
+          }
         }
         stats[code ? 'code' : 'comment']++;
+        if (code) {
+          for (const c of codeLine) {
+            if ('([{'.includes(c)) bracketDepth++;
+            if (')]}'.includes(c)) bracketDepth = Math.max(0,bracketDepth-1);
+          }
+          continuation = !!continuedQuote || bracketDepth > 0 || codeLine.join('').trimEnd().endsWith('\\');
+        }
       }
+      while (active.length) stats.functionCodeLines.push(stats.code - active.pop().codeBefore);
       return !triple;
     }
 
-    function countCLikeFunctions(text) {
-      const masked = text.split('');
-      let inBlock = false;
-      for (let i = 0; i < masked.length; i++) {
-        const c = text[i], next = text[i+1];
-        if (inBlock) {
-          if (c === '*' && next === '/') { masked[i] = masked[i+1] = ' '; i++; inBlock = false; }
-          else if (c !== '\n' && c !== '\r') masked[i] = ' ';
-          continue;
-        }
-        if (c === '/' && next === '*') { masked[i] = masked[i+1] = ' '; i++; inBlock = true; continue; }
-        if (c === '/' && next === '/') {
-          while (i < masked.length && text[i] !== '\n') masked[i++] = ' ';
-          i--;
-          continue;
-        }
-        if (c === '"' || c === "'") {
-          const quote = c;
-          masked[i] = ' ';
-          for (i++; i < masked.length; i++) {
-            if (text[i] === '\\') {
-              masked[i] = ' ';
-              if (i + 1 < masked.length) { if (text[i+1] !== '\n' && text[i+1] !== '\r') masked[i+1] = ' '; i++; }
-              continue;
-            }
-            if (text[i] === quote) { masked[i] = ' '; break; }
-            if (text[i] !== '\n' && text[i] !== '\r') masked[i] = ' ';
-          }
-        }
-      }
-      const tokens = masked.join('').match(/[A-Za-z_$][\w$]*|\d+|[^\s]/g) || [];
+    function countCLikeFunctions(tokens, tokenLines, codePrefix, directives) {
       const parenMate = Array(tokens.length).fill(-1), braceMate = Array(tokens.length).fill(-1);
       const stack = [];
       for (let i=0;i<tokens.length;i++) {
@@ -187,29 +200,29 @@
         else if (tokens[i] === '}' && stack.length) { const open=stack.pop(); braceMate[open]=i; braceMate[i]=open; }
       }
       const excluded = new Set(['if','for','while','switch','catch','synchronized','foreach','sizeof','alignof','decltype','typeid','static_assert','requires','noexcept','throw','new','delete','return','else','do']);
-      let count = 0;
+      const lengths = [], countedBodies = new Set();
       for (let close=0;close<tokens.length;close++) {
         if (tokens[close] !== ')' || parenMate[close] < 0) continue;
         const open=parenMate[close], before=tokens[open-1] || '';
         let declarator = /^[A-Za-z_$]/.test(before) && !excluded.has(before);
-        if (declarator && open >= 2 && ['@','=',' ',',','.','->',':','new'].includes(tokens[open-2])) {
+        if (declarator && open >= 2 && ['@','=',',','.','->',':','new'].includes(tokens[open-2])) {
           const accessLabel = tokens[open-2] === ':' && open >= 3 && ['public','protected','private'].includes(tokens[open-3]);
           if (!accessLabel) declarator=false;
         }
         if (!declarator) {
-          for (let j=Math.max(0,open-12);j<open;j++) {
+          for (let j=open-1;j>=Math.max(0,open-12);j--) {
             if (tokens[j] === 'operator') { declarator=true; break; }
             if (tokens[j] === ';' || tokens[j] === '{' || tokens[j] === '}') break;
           }
         }
         if (!declarator) continue;
-        let hasCtorInitializer=false, foundBody=false;
+        let hasCtorInitializer=false, body=-1;
         for (let i=close+1;i<tokens.length;) {
           const token=tokens[i];
           if (token === '{') {
             const after=braceMate[i] >= 0 ? tokens[braceMate[i]+1] : '';
-            if (hasCtorInitializer && braceMate[i] >= 0 && (after === ',' || after === '{')) { i=braceMate[i]+1; continue; }
-            foundBody=true; break;
+            if (hasCtorInitializer && braceMate[i] >= 0 && (after === ',' || after === '{')) { i=braceMate[i]+(after === ',' ? 2 : 1); continue; }
+            body=i; break;
           }
           if (token === ';' || token === '=' || token === '}') break;
           if (token === ':') hasCtorInitializer=true;
@@ -223,9 +236,19 @@
           if (token === ',' && !hasCtorInitializer) break;
           i++;
         }
-        if (foundBody) count++;
+        if (body >= 0 && braceMate[body] >= 0 && !countedBodies.has(body) && !directives[tokenLines[open]]) {
+          countedBodies.add(body);
+          let start = open;
+          while (start > 0) {
+            const previous = tokens[start-1];
+            if ([';','{','}'].includes(previous) || directives[tokenLines[start-1]]) break;
+            if (previous === ':' && ['public','private','protected'].includes(tokens[start-2])) break;
+            start--;
+          }
+          lengths.push(codePrefix[tokenLines[braceMate[body]]+1] - codePrefix[tokenLines[start]]);
+        }
       }
-      return count;
+      return lengths;
     }
     function isSkippedPath(path) {
       const parts = (path || '').split('/');
@@ -242,10 +265,10 @@
       const totals = fresh();
       tableBody.replaceChildren();
       for (const lang of languages) {
-        const s = stats.get(lang.name); Object.keys(totals).forEach(key => totals[key] += s[key]);
-        const values = [...s.fileCodeLines].sort((a,b) => a-b), n = values.length;
+        const s = stats.get(lang.name); Object.keys(totals).filter(key => key !== 'functionCodeLines').forEach(key => totals[key] += s[key]);
+        const values = [...s.functionCodeLines].sort((a,b) => a-b), n = values.length;
         const maximum = n ? values[n-1] : 0, minimum = n ? values[0] : 0;
-        const mean = n ? s.code / n : 0;
+        const mean = n ? values.reduce((sum,value) => sum+value,0) / n : 0;
         const median = n ? (n % 2 ? values[Math.floor(n/2)] : (values[n/2-1] + values[n/2])/2) : 0;
         const row = document.createElement('tr');
         [lang.name,s.files,s.code,s.blank,s.comment,s.functions,maximum,minimum,mean.toFixed(2),median.toFixed(2)].forEach((value,index) => {
@@ -262,7 +285,7 @@
     picker.addEventListener('change', async () => {
       const all = Array.from(picker.files || []);
       if (!all.length) return;
-      const stats = new Map(languages.map(lang => [lang.name,{...fresh(),fileCodeLines:[]}]));
+      const stats = new Map(languages.map(lang => [lang.name,fresh()]));
       const sourceFiles = all.map(file => ({file,index:languageFor(file)})).filter(item => item.index >= 0 && !isSkippedPath(item.file.webkitRelativePath));
       const directories = new Set(sourceFiles.map(item => item.file.webkitRelativePath ? item.file.webkitRelativePath.split('/').slice(0,-1).join('/') : ''));
       let skipped = 0, unclosed = 0;
@@ -276,8 +299,8 @@
           const closed = index === 3 ? scanPython(content,s) : scanCLike(content,s);
           if (!closed) unclosed++;
           const target = stats.get(languages[index].name);
-          Object.keys(s).forEach(key => target[key] += s[key]);
-          target.fileCodeLines.push(s.code);
+          Object.keys(s).filter(key => key !== 'functionCodeLines').forEach(key => target[key] += s[key]);
+          for (const length of s.functionCodeLines) target.functionCodeLines.push(length);
         } catch { skipped++; }
         if (i % 20 === 0 || i === sourceFiles.length - 1) {
           statusEl.textContent = `正在统计 ${number.format(i + 1)} / ${number.format(sourceFiles.length)} 个源码文件…`;

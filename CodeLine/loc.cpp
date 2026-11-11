@@ -88,7 +88,7 @@ struct Stats
     long long comment;  /* 注释行数     */
     long long code;     /* 代码行数     */
 
-    std::vector<long long> fileCodeLines; /* 每个源文件的代码行数 */
+    std::vector<long long> functionCodeLines; /* 每个函数的有效代码行数 */
 
     Stats() : files(0), functions(0), blank(0), comment(0), code(0) {}
 
@@ -99,7 +99,8 @@ struct Stats
         blank   += o.blank;
         comment += o.comment;
         code    += o.code;
-        fileCodeLines.push_back(o.code);
+        functionCodeLines.insert(functionCodeLines.end(),
+                                 o.functionCodeLines.begin(), o.functionCodeLines.end());
     }
 };
 
@@ -211,7 +212,10 @@ static bool isFunctionDeclarator(const std::vector<std::string>& tokens,
     return false;
 }
 
-static long long countCLikeFunctions(const std::vector<std::string>& tokens)
+static void countCLikeFunctions(const std::vector<std::string>& tokens,
+                               const std::vector<std::size_t>& tokenLines,
+                               const std::vector<long long>& codePrefix,
+                               const std::vector<bool>& directives, Stats& st)
 {
     const std::size_t n = tokens.size();
     std::vector<int> parenMate(n, -1), braceMate(n, -1);
@@ -242,7 +246,7 @@ static long long countCLikeFunctions(const std::vector<std::string>& tokens)
         }
     }
 
-    long long count = 0;
+    std::vector<bool> countedBody(n, false);
     for (std::size_t close = 0; close < n; ++close)
     {
         if (tokens[close] != ")" || parenMate[close] < 0)
@@ -299,10 +303,28 @@ static long long countCLikeFunctions(const std::vector<std::string>& tokens)
                 break;
             ++i;
         }
-        if (foundBody)
-            ++count;
+        if (foundBody && braceMate[i] >= 0 && !countedBody[i]
+            && !directives[tokenLines[open]])
+        {
+            countedBody[i] = true;
+            std::size_t start = open;
+            while (start > 0)
+            {
+                const std::string& previous = tokens[start - 1];
+                if (previous == ";" || previous == "{" || previous == "}"
+                    || directives[tokenLines[start - 1]])
+                    break;
+                if (previous == ":" && start >= 2
+                    && (tokens[start - 2] == "public" || tokens[start - 2] == "private"
+                        || tokens[start - 2] == "protected"))
+                    break;
+                --start;
+            }
+            const std::size_t endLine = tokenLines[static_cast<std::size_t>(braceMate[i])];
+            st.functionCodeLines.push_back(codePrefix[endLine + 1] - codePrefix[tokenLines[start]]);
+        }
     }
-    return count;
+    st.functions = static_cast<long long>(st.functionCodeLines.size());
 }
 
 /* --------------------------------------------------------------------------
@@ -318,10 +340,16 @@ static bool scanCLike(std::istream& in, Stats& st)
     std::string line;
     bool inBlock = false;               /* 是否正处于块注释之中 */
     std::vector<std::string> tokens;
+    std::vector<std::size_t> tokenLines;
+    std::vector<long long> codePrefix(1, 0);
+    std::vector<bool> directives;
 
     while (std::getline(in, line))
     {
         chomp(line);
+        const std::size_t lineNumber = directives.size();
+        directives.push_back(false);
+        codePrefix.push_back(st.code);
 
         if (isBlankLine(line))          /* 空行（含块注释中的空行） */
         {
@@ -390,15 +418,20 @@ static bool scanCLike(std::istream& in, Stats& st)
             ++i;
         }
 
+        const std::size_t first = codeLine.find_first_not_of(" \t\v\f");
+        directives.back() = first != std::string::npos && codeLine[first] == '#';
+        const std::size_t oldSize = tokens.size();
         appendTokens(codeLine, tokens);
+        tokenLines.insert(tokenLines.end(), tokens.size() - oldSize, lineNumber);
 
         if (hasCode)
             ++st.code;
         else
             ++st.comment;               /* 本行非空但无代码 -> 纯注释行 */
+        codePrefix.back() = st.code;
     }
 
-    st.functions = countCLikeFunctions(tokens);
+    countCLikeFunctions(tokens, tokenLines, codePrefix, directives, st);
     return !inBlock;
 }
 
@@ -411,6 +444,11 @@ static bool scanPython(std::istream& in, Stats& st)
 {
     std::string line;
     std::string triple;                 /* 当前处于的三引号，空串表示不在其中 */
+    char continuedQuote = 0;            /* 反斜杠续行的普通字符串 */
+    struct ActiveFunction { std::size_t indent; long long codeBefore; };
+    std::vector<ActiveFunction> active;
+    int bracketDepth = 0;
+    bool continuation = false;
 
     while (std::getline(in, line))
     {
@@ -446,11 +484,11 @@ static bool scanPython(std::istream& in, Stats& st)
             const char c = line[i];
 
             /* --- # 行注释 --- */
-            if (c == '#')
+            if (!continuedQuote && c == '#')
                 break;
 
             /* --- 三引号字符串开始 --- */
-            if ((c == '"' || c == '\'') && i + 2 < n
+            if (!continuedQuote && (c == '"' || c == '\'') && i + 2 < n
                 && line[i + 1] == c && line[i + 2] == c)
             {
                 triple.assign(3, c);
@@ -459,13 +497,20 @@ static bool scanPython(std::istream& in, Stats& st)
             }
 
             /* --- 普通字符串：整体跳过 --- */
-            if (c == '"' || c == '\'')
+            if (continuedQuote || c == '"' || c == '\'')
             {
-                const char quote = c;
-                ++i;
+                const char quote = continuedQuote ? continuedQuote : c;
+                codeLine[i] = '0';      /* 保留字符串语句的位置，不暴露其内容 */
+                if (!continuedQuote) ++i;
+                continuedQuote = 0;
                 while (i < n)
                 {
-                    if (line[i] == '\\') { i += 2; continue; }
+                    if (line[i] == '\\')
+                    {
+                        if (i + 1 == n) continuedQuote = quote;
+                        i += 2;
+                        continue;
+                    }
                     if (line[i] == quote) { ++i; break; }
                     ++i;
                 }
@@ -485,6 +530,22 @@ static bool scanPython(std::istream& in, Stats& st)
         }
 
         /* Python 函数定义以语句形式出现在行首，可跨行书写参数列表。 */
+        std::size_t indent = 0;
+        for (std::size_t j = 0; j < line.size(); ++j)
+        {
+            if (line[j] == ' ') ++indent;
+            else if (line[j] == '\t') indent += 8 - indent % 8;
+            else if (line[j] == '\f') indent = 0;
+            else break;
+        }
+        if (hasCode && !continuation)
+        {
+            while (!active.empty() && indent <= active.back().indent)
+            {
+                st.functionCodeLines.push_back(st.code - active.back().codeBefore);
+                active.pop_back();
+            }
+        }
         std::size_t p = 0;
         while (p < codeLine.size() && std::isspace(static_cast<unsigned char>(codeLine[p]))) ++p;
         if (codeLine.compare(p, 5, "async") == 0
@@ -498,16 +559,37 @@ static bool scanPython(std::istream& in, Stats& st)
         {
             p += 3;
             while (p < codeLine.size() && std::isspace(static_cast<unsigned char>(codeLine[p]))) ++p;
-            if (p < codeLine.size() && isIdentifierStart(codeLine[p]))
+            if (!continuation && p < codeLine.size() && isIdentifierStart(codeLine[p]))
+            {
                 ++st.functions;
+                ActiveFunction function = { indent, st.code };
+                active.push_back(function);
+            }
         }
 
         if (hasCode)
             ++st.code;
         else
             ++st.comment;
+        if (hasCode)
+        {
+            for (std::size_t j = 0; j < codeLine.size(); ++j)
+            {
+                if (codeLine[j] == '(' || codeLine[j] == '[' || codeLine[j] == '{') ++bracketDepth;
+                if (codeLine[j] == ')' || codeLine[j] == ']' || codeLine[j] == '}')
+                    bracketDepth = std::max(0, bracketDepth - 1);
+            }
+            const std::size_t last = codeLine.find_last_not_of(" \t\v\f");
+            continuation = continuedQuote || bracketDepth > 0
+                || (last != std::string::npos && codeLine[last] == '\\');
+        }
     }
 
+    while (!active.empty())
+    {
+        st.functionCodeLines.push_back(st.code - active.back().codeBefore);
+        active.pop_back();
+    }
     return triple.empty();
 }
 
@@ -684,7 +766,8 @@ static void printUsage(const char* prog)
         << "\n"
         << "支持语言: C (.c .h) | C++ (.cpp .cc .cxx .hpp .hh .hxx)\n"
         << "          JAVA (.java) | Python (.py .pyw) | C# (.cs)\n"
-        << "函数数统计有函数体的定义（空函数体计数；不计原型和 lambda）。\n";
+        << "函数数统计有函数体的定义（空函数体计数；不计原型和 lambda）。\n"
+        << "最大值、最小值、均值、中位数按每个函数的有效代码行数计算（含定义行和花括号）。\n";
 }
 
 /* UTF-8 中文字符按两个终端列宽补齐，保证表格边框对齐。 */
@@ -859,13 +942,15 @@ int main(int argc, char** argv)
     for (int l = 0; l < LANG_COUNT; ++l)
     {
         Stats& s = perLang[l];
-        std::sort(s.fileCodeLines.begin(), s.fileCodeLines.end());
-        const std::size_t n = s.fileCodeLines.size();
-        const long long maximum = n ? s.fileCodeLines.back() : 0;
-        const long long minimum = n ? s.fileCodeLines.front() : 0;
-        const double mean = n ? static_cast<double>(s.code) / n : 0;
-        const double median = n ? (n % 2 ? static_cast<double>(s.fileCodeLines[n / 2])
-            : s.fileCodeLines[n / 2 - 1] / 2.0 + s.fileCodeLines[n / 2] / 2.0) : 0;
+        std::sort(s.functionCodeLines.begin(), s.functionCodeLines.end());
+        const std::size_t n = s.functionCodeLines.size();
+        const long long maximum = n ? s.functionCodeLines.back() : 0;
+        const long long minimum = n ? s.functionCodeLines.front() : 0;
+        long long functionCodeTotal = 0;
+        for (std::size_t i = 0; i < n; ++i) functionCodeTotal += s.functionCodeLines[i];
+        const double mean = n ? static_cast<double>(functionCodeTotal) / n : 0;
+        const double median = n ? (n % 2 ? static_cast<double>(s.functionCodeLines[n / 2])
+            : s.functionCodeLines[n / 2 - 1] / 2.0 + s.functionCodeLines[n / 2] / 2.0) : 0;
         std::ostringstream meanText, medianText;
         meanText << std::fixed << std::setprecision(2) << mean;
         medianText << std::fixed << std::setprecision(2) << median;
