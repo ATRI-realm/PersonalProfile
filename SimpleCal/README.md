@@ -102,7 +102,7 @@ python -m simple_calculate.ai_server
 3. Render 部署成功后，打开生成的服务地址下的 `/healthz`，确认返回 `{"status":"ok"}`。将服务的实际 HTTPS 源填入 `口算练习.html` 顶部 `<meta id="simplecalCloudOrigin">` 的 `content`，例如 `https://你的服务名.onrender.com`。`content` 填域名和协议即可，程序会自动添加接口路径。
 4. 提交网页改动并等待 GitHub Pages 更新。在正式网页中开始一组练习，点击「AI 讲解」。若网页使用自定义域名，在 Render 的 `SIMPLECAL_ALLOWED_ORIGINS` 中同时配置访问时使用的网页源。多个源用逗号分隔，源不含 `/PersonalProfile/` 这样的路径。
 
-云端接口每个 IP 默认每分钟可发起 4 次模型调用，全站每天 60 次（北京时间午夜重新计数）。可以通过 `SIMPLECAL_AI_PER_IP_PER_MINUTE` 和 `SIMPLECAL_AI_PER_DAY` 调整。次数在发给模型前扣除，模型超时也占一次。Key Value 实例保存短期计数，Web Service 休眠唤醒时仍可读取。免费 Key Value 自身重启会丢失计数。已有免费 Key Value 的 Render 工作区可配置 `SIMPLECAL_REDIS_URL` 指向同一区域的现有实例。
+云端接口每个 IP 默认每分钟可发起 4 次模型调用，全站每天 60 次（北京时间午夜重新计数）。可以通过 `SIMPLECAL_AI_PER_IP_PER_MINUTE` 和 `SIMPLECAL_AI_PER_DAY` 调整。次数在发给模型前扣除，模型超时也占一次。Key Value 实例保存短期计数，Web Service 休眠唤醒时仍可读取。免费 Key Value 自身重启会丢失计数。如果工作区已用掉免费 Key Value 名额，可按 `render.yaml` 的 Web Service 配置单独创建服务，在 `SIMPLECAL_REDIS_URL` 中指定同一区域的现有实例的内网地址。
 
 Render 免费 Web Service 可能在闲置后休眠。页面会先检查服务状态，服务就绪后才提交一次讲解请求。访问者仍可继续答题。模型调用按服务商的 API 账单计费，默认模型价格见 [GPT‑4.1 mini](https://developers.openai.com/api/docs/models/gpt-4.1-mini)。云端只接收当前算式，学生档案依然保存在访问者的浏览器中。
 
