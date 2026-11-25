@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#31584b">
+<meta id="simplecalCloudOrigin" name="simplecal-cloud-origin" content="">
 <title>SimpleCal · 每天一点口算进步</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%2331584b'/%3E%3Ctext x='20' y='29' text-anchor='middle' fill='white' font-size='29'%3E%2B%3C/text%3E%3C/svg%3E">
 <style>
@@ -32,6 +33,7 @@ body[data-theme=sky]{--accent:#426d90;--accent-dark:#325773;--tint:#e6eef3;--bg:
 @media(max-width:520px){.student-bar{padding:12px 18px;font-size:11px;align-items:flex-start}.student-bar .text-btn{font-size:11px;padding-top:0}.student-list{grid-template-columns:1fr}.student-card{padding:18px}.backup-actions{flex-direction:column}.backup-actions .btn{width:100%}.student-form{grid-template-columns:minmax(0,1fr) 75px}}
 .specialty-cards{display:grid;grid-template-columns:1fr 1fr;gap:20px}.specialty-card{display:flex;flex-direction:column;gap:14px}.specialty-card h3{font-size:21px;margin:0}.specialty-card p{margin:0;font-size:13px;color:var(--muted)}.specialty-card .btn{margin-top:auto;align-self:flex-start}.skill-status{font-size:12px;color:var(--accent);background:var(--tint);padding:10px 13px;border-radius:8px}.skill-status.practice{color:#965a2e;background:#f8efdd}.recommendation{margin-bottom:22px}.recommendation .study-toolbar{margin-bottom:12px}.recommendation p{margin:0;font-size:13px;color:var(--muted)}.recommend-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.hint-area{max-width:510px;margin:14px auto 0;text-align:center}.hint-panel{text-align:left;background:var(--tint);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-top:12px}.hint-panel h2{font-size:15px;margin:0 0 12px}.hint-panel ol{margin:0;padding-left:22px}.hint-panel li{font-size:13px;margin-bottom:13px;padding-left:3px}.hint-panel strong{display:block;font-size:21px;font-weight:550;margin-top:5px;font-variant-numeric:tabular-nums}.hint-panel p{margin:8px 0 0;font-size:11px}.question-card .hint-area .text-btn{font-size:13px}.question-card .hint-area .text-btn:disabled{color:var(--muted);text-decoration:none}.assisted-note{font-size:12px;color:var(--muted)}
 @media(max-width:600px){.specialty-cards{grid-template-columns:1fr}.hint-panel{padding:16px}.hint-panel strong{font-size:19px}.recommend-buttons .btn{white-space:normal;text-align:left}}
+.hint-actions{display:flex;flex-wrap:wrap;justify-content:center;column-gap:24px}.ai-notice{margin:10px 0;text-align:center;overflow-wrap:anywhere}.ai-steps li{overflow-wrap:anywhere}
 </style>
 </head>
 <body>
@@ -64,7 +66,19 @@ body[data-theme=sky]{--accent:#426d90;--accent-dark:#325773;--tint:#e6eef3;--bg:
         <div class="play-heading"><button id="backToMap" class="text-btn" type="button">← 关卡地图</button><span id="runLevelLabel"></span><span id="runReward" class="reward"></span></div>
         <div class="question-card"><div class="question-meta"><span id="questionCount"></span><span id="correctCount"></span></div><div class="track"><span id="questionBar"></span></div><h1 id="questionExpr" class="question-expr"></h1>
           <form id="answerForm" novalidate><label class="sr-only" for="answerInput">你的答案</label><input id="answerInput" class="answer-input" type="text" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="输入答案" aria-describedby="answerFeedback"><button id="submitAnswer" class="btn primary" type="submit">确认答案 <span aria-hidden="true">↵</span></button></form>
-          <p id="answerFeedback" class="answer-feedback" role="status"></p><div class="hint-area"><button id="hintBtn" class="text-btn" type="button" aria-expanded="false" aria-controls="hintPanel" hidden>给我一点提示</button><section id="hintPanel" class="hint-panel" aria-label="分步计算提示" aria-live="polite" hidden><h2 id="hintTitle"></h2><ol id="hintSteps"></ol><p id="hintNote" class="muted"></p></section></div><p class="quiet-note">不计时，按自己的节奏来。按 Enter 确认或继续。</p>
+          <p id="answerFeedback" class="answer-feedback" role="status"></p>
+          <div class="hint-area">
+            <div class="hint-actions">
+              <button id="hintBtn" class="text-btn" type="button" aria-expanded="false" aria-controls="hintPanel" hidden>给我一点提示</button>
+              <button id="aiHintBtn" class="text-btn" type="button" aria-expanded="false" aria-controls="aiHintPanel" aria-describedby="aiHintStatus">AI 讲解</button>
+            </div>
+            <section id="hintPanel" class="hint-panel" aria-label="分步计算提示" aria-live="polite" hidden><h2 id="hintTitle"></h2><ol id="hintSteps"></ol><p id="hintNote" class="muted"></p></section>
+            <p id="aiHintStatus" class="muted ai-notice" role="status"></p>
+            <section id="aiHintPanel" class="hint-panel" aria-labelledby="aiHintTitle" hidden>
+              <h2 id="aiHintTitle">AI 分步讲解</h2><ol id="aiHintSteps" class="ai-steps"></ol><p id="aiHintNote" class="muted"></p>
+            </section>
+          </div>
+          <p class="quiet-note">不计时，按自己的节奏来。按 Enter 确认或继续。</p>
         </div>
       </div>
       <div id="resultArea" class="result-area" hidden><div class="result-card"><div id="resultMark" class="result-mark" aria-hidden="true">✦</div><span id="resultEyebrow" class="eyebrow"></span><h1 id="resultTitle" tabindex="-1"></h1><p id="resultText"></p><div id="resultReward" class="result-reward"></div><div class="result-actions"><button id="resultMain" class="btn primary" type="button">下一关</button><button id="resultMap" class="btn" type="button">返回地图</button></div></div><div id="mistakeArea" class="mistake-area" hidden><h2>把这几题再看一遍</h2><div id="mistakes"></div></div></div>
@@ -1700,7 +1714,7 @@ body[data-theme=sky]{--accent:#426d90;--accent-dark:#325773;--tint:#e6eef3;--bg:
   try { storage = window.localStorage; } catch { storage = null; }
   const store = new P.StudentStore(storage);
   const state = { view: 'challenge', run: null, feedback: false, result: null, problems: [], showAnswers: false,
-    studyTab: 'daily', mistakeLimit: 30, perLine: 3, toastTimer: null, pendingProduct: null, pendingLeave: null, pendingImport: null, importTarget: null, importRead: 0 };
+    studyTab: 'daily', mistakeLimit: 30, perLine: 3, toastTimer: null, pendingProduct: null, pendingLeave: null, pendingImport: null, importTarget: null, importRead: 0, aiRequest: null };
   function node(tag, className, text) {
     const element = document.createElement(tag);
     if (className) element.className = className;
@@ -1854,6 +1868,7 @@ body[data-theme=sky]{--accent:#426d90;--accent-dark:#325773;--tint:#e6eef3;--bg:
     } else action();
   }
   function map() {
+    resetAiHint();
     state.run = null;
     state.feedback = false;
     $('levelMap').hidden = false;
@@ -1892,6 +1907,7 @@ body[data-theme=sky]{--accent:#426d90;--accent-dark:#325773;--tint:#e6eef3;--bg:
     $('answerFeedback').textContent = '';
     $('answerFeedback').className = 'answer-feedback';
     $('submitAnswer').textContent = '确认答案 ↵';
+    resetAiHint();
     state.hintStep=0; renderHint();
     $('answerInput').focus({ preventScroll: true });
   }
@@ -1931,6 +1947,7 @@ body[data-theme=sky]{--accent:#426d90;--accent-dark:#325773;--tint:#e6eef3;--bg:
       return P.finishLearning(p,state.run);
     });
     if (!transaction.ok) return;
+    resetAiHint();
     state.run.settled = true;
     state.result = transaction.result;
     const result = state.result;
@@ -1987,6 +2004,106 @@ body[data-theme=sky]{--accent:#426d90;--accent-dark:#325773;--tint:#e6eef3;--bg:
     if (!help || state.hintStep>=help.steps.length) return;
     if (!state.feedback) { state.run.hinted ||= {}; state.run.hinted[index]=true; }
     state.hintStep++; renderHint();
+  }
+  function resetAiHint() {
+    state.aiRequest?.abort();
+    state.aiRequest = null;
+    $('aiHintBtn').disabled = false;
+    $('aiHintBtn').textContent = 'AI 讲解';
+    $('aiHintBtn').setAttribute('aria-expanded', 'false');
+    $('aiHintStatus').textContent = '';
+    $('aiHintSteps').replaceChildren();
+    $('aiHintPanel').hidden = true;
+  }
+  function cloudAiEndpoint() {
+    const configured = $('simplecalCloudOrigin').getAttribute('content').trim();
+    if (!configured) return null;
+    try {
+      const origin = new URL(configured);
+      if (origin.protocol === 'https:' && !origin.username && !origin.password && origin.pathname === '/' && !origin.search && !origin.hash) {
+        return `${origin.origin}/api/explain`;
+      }
+    } catch { /* An incomplete configuration leaves the practice page usable. */ }
+    return null;
+  }
+  async function waitForCloudAi(endpoint, signal) {
+    const health = new URL('/healthz', endpoint);
+    while (!signal.aborted) {
+      try {
+        const response = await fetch(health.href, {signal, credentials: 'omit', cache: 'no-store'});
+        if (response.ok && (await response.json()).status === 'ok') return;
+      } catch { /* The hosting proxy may serve a loading page during a cold start. */ }
+      if (!signal.aborted) await new Promise(resolve => setTimeout(resolve, 4000));
+    }
+    throw new Error('Cloud health check was cancelled');
+  }
+  async function revealAiHint() {
+    const run = state.run;
+    const button = $('aiHintBtn');
+    const status = $('aiHintStatus');
+    if (!run || run.settled || button.disabled) return;
+    const local = location.protocol === 'http:' && location.hostname === '127.0.0.1';
+    const hosted = location.protocol === 'https:';
+    if (!local && !hosted) {
+      status.textContent = '请按 README 启动 SimpleCal 本地服务，在本地服务页面使用 AI 讲解。';
+      return;
+    }
+    const endpoint = local ? '/api/explain' : cloudAiEndpoint();
+    if (!endpoint) {
+      status.textContent = '此网页尚未配置云端 AI 讲解。';
+      return;
+    }
+    const index = run.answers.length - Number(state.feedback);
+    const request = new AbortController();
+    state.aiRequest = request;
+    button.disabled = true;
+    status.textContent = '正在生成 AI 讲解…';
+    const timeout = setTimeout(() => request.abort(), local ? 15000 : 90000);
+    const startup = local ? null : setTimeout(() => {
+      if (state.aiRequest === request) status.textContent = '云端讲解可能正在启动，首次连接需要多等一会儿。';
+    }, 12000);
+    try {
+      if (!local) await waitForCloudAi(endpoint, request.signal);
+      if (request.signal.aborted) throw new Error();
+      const response = await fetch(endpoint, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({expression: run.problems[index].text}), signal: request.signal, credentials: 'omit',
+      });
+      const data = await response.json();
+      if (state.aiRequest !== request) return;
+      if (request.signal.aborted) throw new Error();
+      if (!response.ok) {
+        status.textContent = data.error || 'AI 讲解暂时不可用，请稍后重试。';
+        return;
+      }
+      const steps = data.steps.map(step => {
+        const row = node('li');
+        row.append(node('span', '', step.text), node('strong', '', step.equation));
+        return row;
+      });
+      if (!steps.length) throw new Error();
+      if (!state.feedback) { run.hinted ||= {}; run.hinted[index] = true; }
+      $('aiHintSteps').replaceChildren(...steps);
+      $('aiHintNote').textContent = state.feedback ? '答题后的方法回顾。'
+        : '本题计为使用提示，仍计入练习成绩。薄弱项推荐和错题巩固依据独立作答。';
+      $('aiHintPanel').hidden = false;
+      button.setAttribute('aria-expanded', 'true');
+      button.textContent = 'AI 讲解已展开';
+      status.textContent = 'AI 讲解已准备好。';
+    } catch {
+      if (state.aiRequest === request) {
+        if (request.signal.aborted) status.textContent = 'AI 讲解等待超时，可以重试。';
+        else status.textContent = local ? '暂时无法获取 AI 讲解，请检查本地服务后重试。' : '暂时无法连接云端 AI 讲解，请稍后重试。';
+      }
+    } finally {
+      clearTimeout(timeout);
+      clearTimeout(startup);
+      if (state.aiRequest === request) {
+        state.aiRequest = null;
+        button.disabled = !$('aiHintPanel').hidden;
+        if (!button.disabled) button.textContent = '重试 AI 讲解';
+      }
+    }
   }
   function renderSpecialties() {
     const skills=P.specialtyRecommendations(store.profile);
@@ -2186,6 +2303,7 @@ body[data-theme=sky]{--accent:#426d90;--accent-dark:#325773;--tint:#e6eef3;--bg:
     }) : [node('p', 'muted', '还没有记录。完成第一关，攒下第一笔积分。')]));
   }
   $('hintBtn').addEventListener('click',revealHint);
+  $('aiHintBtn').addEventListener('click',revealAiHint);
   $('browseSpecialties').addEventListener('click',()=>{state.studyTab='special';renderStudy()});
   $('manageStudents').addEventListener('click',()=>askLeave(()=>{map();showView('profiles')}));
   $('editStudentForm').addEventListener('submit',event=>{

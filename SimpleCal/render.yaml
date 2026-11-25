@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: simplecal-ai
+    runtime: python
+    plan: free
+    rootDir: SimpleCal
+    buildCommand: pip install ".[cloud]"
+    startCommand: uvicorn simple_calculate.cloud_api:create_app --factory --host 0.0.0.0 --port "$PORT" --no-proxy-headers
+    healthCheckPath: /healthz
+    envVars:
+      - key: SIMPLECAL_API_KEY
+        sync: false
+      - key: SIMPLECAL_ALLOWED_ORIGINS
+        value: https://atri-realm.github.io
+      - key: SIMPLECAL_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: simplecal-ai-quotas
+          property: connectionString
+  - type: keyvalue
+    name: simplecal-ai-quotas
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: noeviction

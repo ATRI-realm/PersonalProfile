@@ -2,7 +2,7 @@
 
 页面就是这份交付物的本体：双击打开、零依赖、离线可用。这里锁住几件一旦被
 改动就会悄悄破坏它的事——外部资源引用、内联脚本的标记、答案开关的默认态，
-以及"HTTP 服务已下线"这个前提（页面上不该再有任何网络调用）。
+以及 AI 讲解用到的网络入口。离线与线上模式的请求由交互测试覆盖。
 
 跟交叉验证（`test_engine_parity`）的分工：那边管"算出来的题对不对"，
 这边管"这张页面还是不是一张能独立打开的页面"。
@@ -59,10 +59,9 @@ class TestSingleFilePage(unittest.TestCase):
         self.assertGreater(len(source), 20000, "引擎源码过短，像是被截断了")
         self.assertIn("global.SCEngine", source)
 
-    def test_page_makes_no_network_calls(self) -> None:
-        """本地服务已下线，页面只靠内联引擎出题。"""
-        self.assertNotIn("fetch(", self.html, "页面上不该再有网络请求")
-        self.assertNotIn("/api/", self.html, "页面上不该再有服务端接口路径")
+    def test_network_calls_are_scoped_to_ai_health_and_explanations(self) -> None:
+        requests = re.findall(r"\bfetch\(([^,]+),", self.html)
+        self.assertEqual(requests, ["health.href", "endpoint"])
 
     def test_answer_switch_defaults_to_hidden(self) -> None:
         """默认不给答案——这是本版的产品决定，不是渲染层的偶然。"""

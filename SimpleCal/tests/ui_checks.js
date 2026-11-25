@@ -23,6 +23,7 @@ function mount() {
     append(...items){this.children.push(...items)}
     replaceChildren(...items){this.children=[...items]}
     setAttribute(name,value){this.attrs[name]=value}
+    getAttribute(name){return this.attrs[name] ?? null}
     removeAttribute(name){delete this.attrs[name]}
     addEventListener(name,fn){this.listeners[name]=fn}
     focus(){}
@@ -56,8 +57,12 @@ function mount() {
       if(selector==='.settings input, .settings select')return elements.filter(x=>['rangeInput','countInput','kindInput','parenInput','columnsInput','allowZeroInput','zeroResultInput','trivialInput'].includes(x.attrs.id));
       throw Error(`Unknown query ${selector}`);
     }};
-  const context={document,localStorage:storage,location:{hash:''},history:{replaceState(){}},addEventListener(){},
-    setTimeout(){return 1},clearTimeout(){},console,Date,Blob,URL:{createObjectURL(blob){context.lastBlob=blob;return 'blob:backup-test'},revokeObjectURL(){}}};
+  const context={document,localStorage:storage,location:{hash:'',protocol:'file:',hostname:''},history:{replaceState(){}},addEventListener(){},
+    AbortController,fetch(){throw Error('Unexpected network request')},
+    setTimeout(){return 1},clearTimeout(){},console,Date,Blob,URL:class extends URL {
+      static createObjectURL(blob){context.lastBlob=blob;return 'blob:backup-test'}
+      static revokeObjectURL(){}
+    }};
   context.window=context; vm.createContext(context);
   for(const marker of ['sc-engine','sc-progress','sc-app']) {
     const source=html.match(new RegExp(`^<script id="${marker}">\\s*$(.*?)^</script>\\s*$`,'ms'))[1];
@@ -236,6 +241,76 @@ ui=mount(); assert.equal(ui.profile().learning.total,savedCount+1);
   ui=mount();ui.navigate('study');ui.study('special');assert.match(cards()[0].children[3].textContent,/建议再巩固/);
   ui.byId('manageStudents').fire();ui.byId('exportStudent').fire();
   const skillBackup=JSON.parse(await ui.context.lastBlob.text());assert.ok(skillBackup.students[0].profile.learning.skillHistory.length>0);
+  // AI 只在主动点击时请求，成功显示后才计入提示，翻页和退出都会取消旧请求。
+  ui.navigate('study');ui.study('special');cards()[0].children.at(-1).fire();
+  let requests=0;
+  ui.context.fetch=()=>{requests++;throw Error('Offline page should not request the API')};
+  await ui.byId('aiHintBtn').fire();
+  assert.equal(requests,0);assert.match(ui.byId('aiHintStatus').textContent,/本地服务/);
+  assert.equal(ui.byId('hintBtn').hidden,false);
+  Object.assign(ui.context.location,{protocol:'http:',hostname:'127.0.0.1'});
+  const correct=()=>ui.context.SCEngine.internal.evalText(ui.byId('questionExpr').textContent.replace(/ = \?$/,'')).value;
+  let pending, signal;
+  ui.context.fetch=(url,options)=>{
+    requests++;
+    assert.equal(url,'/api/explain');assert.equal(options.method,'POST');
+    assert.deepEqual(JSON.parse(options.body),{expression:ui.byId('questionExpr').textContent.replace(/ = \?$/,'')});
+    signal=options.signal;
+    return new Promise(resolve=>{pending=resolve});
+  };
+  const success=()=>({ok:true,json:async()=>({steps:[{text:'先把算式凑成整十。',equation:'8 + 2 = 10'}]})});
+  let wait=ui.byId('aiHintBtn').fire();ui.byId('aiHintBtn').fire();
+  assert.equal(requests,1);assert.match(ui.byId('aiHintStatus').textContent,/正在生成/);
+  pending({ok:false,json:async()=>({error:'余额不足'})});await wait;
+  assert.match(ui.byId('aiHintStatus').textContent,/余额不足/);assert.equal(ui.byId('aiHintBtn').disabled,false);
+  assert.equal(ui.byId('hintBtn').hidden,false);
+  ui.submit(correct());assert.equal(ui.profile().learning.skillHistory.at(-1).assisted,false);
+  wait=ui.byId('aiHintBtn').fire();pending(success());await wait;
+  assert.match(ui.byId('aiHintNote').textContent,/回顾/);
+  assert.equal(ui.profile().learning.skillHistory.at(-1).assisted,false);
+  ui.next();assert.equal(ui.byId('aiHintPanel').hidden,true);
+  wait=ui.byId('aiHintBtn').fire();pending(success());await wait;
+  assert.equal(ui.byId('aiHintPanel').hidden,false);
+  assert.equal(ui.byId('aiHintSteps').children[0].children[1].textContent,'8 + 2 = 10');
+  ui.submit(correct());assert.equal(ui.profile().learning.skillHistory.at(-1).assisted,true);
+  ui.next();wait=ui.byId('aiHintBtn').fire();ui.submit(correct());
+  assert.equal(ui.profile().learning.skillHistory.at(-1).assisted,false);
+  ui.next();assert.equal(signal.aborted,true);
+  pending(success());await wait;assert.equal(ui.byId('aiHintPanel').hidden,true);
+  wait=ui.byId('aiHintBtn').fire();ui.byId('backToMap').fire();ui.byId('leaveRun').fire();
+  assert.equal(signal.aborted,true);pending(success());await wait;assert.equal(ui.byId('aiHintPanel').hidden,true);
+  process.stdout.write('PASS: optional AI request, retry, assisted accounting, review and stale responses.\n');
+  // GitHub Pages reads its cloud origin from the page and waits for health without repeating a paid POST.
+  cards()[0].children.at(-1).fire();
+  Object.assign(ui.context.location,{protocol:'https:',hostname:'atri-realm.github.io'});
+  const calls=[];
+  ui.context.fetch=(url,options)=>{
+    calls.push({url,options});
+    if (url.endsWith('/healthz')) {
+      return Promise.resolve(calls.length===1 ? {ok:false} : {ok:true,json:async()=>({status:'ok'})});
+    }
+    return Promise.resolve(success());
+  };
+  const config=ui.byId('simplecalCloudOrigin');
+  config.setAttribute('content','');await ui.byId('aiHintBtn').fire();
+  assert.match(ui.byId('aiHintStatus').textContent,/尚未配置/);assert.deepEqual(calls,[]);
+  config.setAttribute('content','http://service.example');await ui.byId('aiHintBtn').fire();
+  assert.deepEqual(calls,[]);
+  config.setAttribute('content','https://service.example/');
+  let retry, warm;
+  ui.context.setTimeout=(callback,delay)=>{
+    if(delay===4000) retry=callback;
+    if(delay===12000) warm=callback;
+    return delay;
+  };
+  wait=ui.byId('aiHintBtn').fire();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(calls.length,1);warm();assert.match(ui.byId('aiHintStatus').textContent,/正在启动/);
+  retry();await wait;
+  assert.deepEqual(calls.map(call=>call.url), ['https://service.example/healthz', 'https://service.example/healthz', 'https://service.example/api/explain']);
+  assert.equal(calls[2].options.method,'POST');assert.equal(calls[2].options.credentials,'omit');
+  assert.deepEqual(JSON.parse(calls[2].options.body),{expression:ui.byId('questionExpr').textContent.replace(/ = \?$/,'')});
+  assert.equal(ui.byId('aiHintPanel').hidden,false);
+  process.stdout.write('PASS: GitHub Pages cloud endpoint, startup and single explanation request.\n');
   process.stdout.write('PASS: specialty selection/replay/exit, progressive hints, post-answer review, assisted results, recommendation thresholds, persistence rollback, refresh and backup.\n');
   process.stdout.write('PASS: profile edit/create/switch, independent daily rewards, backup downloads, import preview/cancel/validation/new/replace, write rollback, stale confirmation and refresh.\n');
 })().catch(error=>{console.error(error);process.exitCode=1});
