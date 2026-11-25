@@ -16,4 +16,4 @@ class TestPageInteractions(unittest.TestCase):
             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn("PASS:", result.stdout)
+        self.assertIn("PASS: GitHub Pages cloud endpoint", result.stdout)

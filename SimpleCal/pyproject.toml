@@ -10,6 +10,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+cloud = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1", "redis>=5,<8"]
+
 [project.scripts]
 simple-calculate = "simple_calculate.cli:main"
 
